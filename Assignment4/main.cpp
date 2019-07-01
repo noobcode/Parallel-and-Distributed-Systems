@@ -1,16 +1,13 @@
-#include <thread>
 #include <iostream>
 #include <vector>
-#include <mutex>
-#include <condition_variable>
 #include <utility>
-#include "./safe_queue.h"
+#include "./map_reduce.h"
 #include <unistd.h>
 
-SafeQueue<std::pair<int, int>> global_results;
+//SafeQueue<std::pair<int, int>> global_results;
 
 int findItem(std::vector<std::pair<int, int>> local_results, int item){
-  for(int i=0; i<local_results.size();i++){
+  for(int i=0; i<local_results.size(); i++){
     if(local_results[i].first == item){
       return i;
     }
@@ -81,45 +78,50 @@ int main(int argc, char* argv[]){
   int nw_mapper = atoi(argv[1]);
   int nw_reducer = atoi(argv[2]);
 
-  std::vector<std::thread> mappers(nw_mapper);
-  std::vector<std::thread> reducers(nw_reducer);
-
-  std::vector<SafeQueue<std::pair<int, int>>*> results(nw_reducer);
-  for(int i = 0; i < nw_reducer; i++)
-    results[i] = new SafeQueue<std::pair<int, int>>;
-
   std::vector<int> data = {3, 3, 4, 6, 2, 4, 6, 6, 5};
 
-  int dim = data.size() / nw_mapper;
+  MapReduce mr(5, 3);
+  mr.map_and_reduce(data, count_numbers_map, count_numbers_reduce)
+  mr.print_results();
+
+  //std::vector<std::thread> mappers(nw_mapper);
+  //std::vector<std::thread> reducers(nw_reducer);
+
+  //std::vector<SafeQueue<std::pair<int, int>>*> results(nw_reducer);
+  //for(int i = 0; i < nw_reducer; i++)
+  //  results[i] = new SafeQueue<std::pair<int, int>>;
+
+
+  //int dim = data.size() / nw_mapper;
   // start mappers
-  for(int i = 0; i < nw_mapper; i++){
-    int startIdx = i * dim;
-    int endIdx = i == nw_mapper-1 ? data.size()-1 : (i+1) * dim-1;
-    mappers[i] = std::thread(count_numbers_map, data, startIdx,  endIdx, results);
-  }
+  //for(int i = 0; i < nw_mapper; i++){
+    //int startIdx = i * dim;
+    //int endIdx = i == nw_mapper-1 ? data.size()-1 : (i+1) * dim-1;
+  //  mappers[i] = std::thread(count_numbers_map, data, startIdx,  endIdx, results);
+  //}
 
 
 
   //start reducers
-  for(int i = 0; i < nw_reducer; i++)
-    reducers[i] = std::thread(count_numbers_reduce, results[i]);
+  //for(int i = 0; i < nw_reducer; i++)
+  //  reducers[i] = std::thread(count_numbers_reduce, results[i]);
 
   // send termination signal to reducers
-  for(int i = 0; i < nw_reducer; i++)
-    results[i]->safe_push(std::make_pair(-1,-1));
+  //for(int i = 0; i < nw_reducer; i++)
+  //  results[i]->safe_push(std::make_pair(-1,-1));
 
   // join mappers and reducers
-  for(int i=0;i<nw_mapper;i++)
-    mappers[i].join();
-  for(int i=0;i<nw_reducer;i++)
-    reducers[i].join();
+  //for(int i=0;i<nw_mapper;i++)
+  //  mappers[i].join();
+  //for(int i=0;i<nw_reducer;i++)
+  //  reducers[i].join();
 
   //std::vector<std::pair<int, int>> data_mapped = count_numbers_map(data, 0, data.size()-1);
 
-  while(!global_results.isEmpty()){
-    auto item = global_results.safe_pop();
-    std::cout << item.first << "," << item.second << std::endl;
-  }
+  //while(!global_results.isEmpty()){
+  //  auto item = global_results.safe_pop();
+  //  std::cout << item.first << "," << item.second << std::endl;
+  //}
 
 
   return 0;
