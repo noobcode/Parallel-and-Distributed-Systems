@@ -4,6 +4,7 @@
 #include <vector>
 #include "./map_reduce_Luca.h"
 
+
 //SafeQueue<std::pair<int, int>> global_results;
 
 int findItem(std::vector<std::pair<int, int>> local_results, int item) {
@@ -24,30 +25,30 @@ void increment_or_insert_item(std::vector<std::pair<int, int>> local_results, in
     }
 }
 
-template<typename T>
-std::pair<T,int> count_numbers_map(T item){
-	return std::make_pair(item, 1);
+template <typename T>
+std::pair<T, int> count_numbers_map(T item) {
+    return std::make_pair(item, 1);
 }
 
-  //std::pair<int, int> count_numbers_map(int item, std::vector<SafeQueue<std::pair<int, int>>*> results) {
+//std::pair<int, int> count_numbers_map(int item, std::vector<SafeQueue<std::pair<int, int>>*> results) {
 
-    //std::vector<std::pair<int, int>> local_results;
-    //for (int i = startIdx; i <= endIdx; i++) {
-        //int item = data[i];
-        //increment_or_insert_item(local_results, item);
-        //int index = findItem(results, item);
-        //return std::make_pair(item, 1);
-        //if (index == -1) {
-          //  results.push_back(std::make_pair(item, 1));
-      //  } else {
-        //    results[index].second++;
-        //}
-    //}
+//std::vector<std::pair<int, int>> local_results;
+//for (int i = startIdx; i <= endIdx; i++) {
+//int item = data[i];
+//increment_or_insert_item(local_results, item);
+//int index = findItem(results, item);
+//return std::make_pair(item, 1);
+//if (index == -1) {
+//  results.push_back(std::make_pair(item, 1));
+//  } else {
+//    results[index].second++;
+//}
+//}
 
-    // push local results to reducers queue
-    //int nw_reducers = results.size();
-    //for (auto i : local_results)
-    //    results[i.first % nw_reducers]->safe_push(i);
+// push local results to reducers queue
+//int nw_reducers = results.size();
+//for (auto i : local_results)
+//    results[i.first % nw_reducers]->safe_push(i);
 //}
 
 std::vector<std::pair<int, int>> count_numbers_reduce(SafeQueue<std::pair<int, int>>* queue) {
@@ -75,8 +76,8 @@ int main(int argc, char* argv[]) {
     int nw_reducer = atoi(argv[2]);
 
     std::vector<int> data = {2, 3, 3, 4, 6, 2, 4, 6, 6, 5, 6, 1, 1, 1, 1, 1};
-    for(auto i:data)
-      std::cout << i << " ";
+    for (auto i : data)
+        std::cout << i << " ";
     std::cout << std::endl;
 
     MapReduce<int> mr(nw_mapper, nw_reducer);
