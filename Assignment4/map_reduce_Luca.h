@@ -1,9 +1,6 @@
 #include <unistd.h>
-#include <condition_variable>
 #include <functional>
 #include <iostream>
-#include <mutex>
-#include <thread>
 #include <utility>
 #include <vector>
 #include "./safe_queue.h"
@@ -17,41 +14,72 @@ template <class T> class MapReduce {
     std::vector<std::thread> mappers;
     std::vector<std::thread> reducers;
 
-    void map(std::function<void(std::vector<int>, int, int,
-                                std::vector<SafeQueue<std::pair<int, int>> *>)>
-                 f_map,
+  public:
+   MapReduce(int nw_mapper, int nw_reducer) : nw_mapper(nw_mapper),
+                                              nw_reducer(nw_reducer),
+                                              mappers(nw_mapper),
+                                              reducers(nw_reducer),
+                                              local_results(nw_reducer) {
+       for (int i = 0; i < nw_reducer; i++)
+           local_results[i] = new SafeQueue<std::pair<int, int>>;
+   };
+
+   int findItem(std::vector<std::pair<T, int>> local_results, int item) {
+       for (int i = 0; i < local_results.size(); i++)
+           if (local_results[i].first == item)
+               return i;
+       return -1;
+   }
+
+ //private:
+ //std::pair<T,int>
+    void map(std::function<std::pair<T,int>(T)> f_map,
              std::vector<int> data, int startIdx, int endIdx) {
-        f_map(data, startIdx, endIdx, local_results);
+
+               std::vector<std::pair<T,int>> temp_results;
+
+               for (int i = startIdx; i <= endIdx; i++) {
+                   T item = data[i];
+                   auto temp_res = f_map(item);
+                   int index = findItem(temp_results, temp_res.first);
+                   if (index == -1) {
+                       temp_results.push_back(temp_res);
+                   } else {
+                      // local reduce
+                      temp_results[index].second++;
+                   }
+                }
+
+                //push local results to reducers queue
+                int nw_reducers = local_results.size();
+                for (auto i : temp_results)
+                    local_results[i.first % nw_reducers]->safe_push(i);
     }
 
-    void reduce(std::function<std::vector<std::pair<int, int>>(SafeQueue<std::pair<int, int>> *)>
-                    f_reduce,
-                SafeQueue<std::pair<int, int>> *queue) {
-        auto local = f_reduce(queue);
+    void reduce(SafeQueue<std::pair<int, int>> *queue) {
+      std::vector<std::pair<T,int>> temp_results;
 
-        // push to global results
-        for (auto i : local) {
-            std::cout << local_results.size() << " " << i.first << " " << i.second << std::endl;
-            global_results.safe_push(i);
-        }
-    }
+      while (true) {
+        auto pair = queue->safe_pop();
+        if (pair.first == -1 && pair.second == -1)
+          break;
 
-   public:
-    MapReduce(int nw_mapper, int nw_reducer) : nw_mapper(nw_mapper),
-                                               nw_reducer(nw_reducer),
-                                               mappers(nw_mapper),
-                                               reducers(nw_reducer),
-                                               local_results(nw_reducer) {
-        for (int i = 0; i < nw_reducer; i++)
-            local_results[i] = new SafeQueue<std::pair<int, int>>;
-    };
+        int index = this->findItem(local_results, pair.first);
+        if (index == -1)
+          temp_results.push_back(pair);
+        else
+          temp_results[index].second += pair.second;
+      }
+
+      // push to global results
+      for (auto i : temp_results) {
+          //std::cout << local_results.size() << " " << i.first << " " << i.second << std::endl;
+          global_results.safe_push(i);
+      }
+  }
 
     void map_and_reduce(std::vector<int> data,
-                        std::function<void(std::vector<int>, int, int,
-                                           std::vector<SafeQueue<std::pair<int, int>> *>)>
-                            f_map,
-                        std::function<std::vector<std::pair<int, int>>(SafeQueue<std::pair<int, int>> *)>
-                            f_reduce) {
+                        std::function<std::pair<T,int>(int)> f_map) {
         int dim = data.size() / nw_mapper;
 
         // start mappers
@@ -63,7 +91,7 @@ template <class T> class MapReduce {
 
         //start reducers
         for (int i = 0; i < nw_reducer; i++)
-            reducers[i] = std::thread([=] { reduce(f_reduce, local_results[i]); });
+            reducers[i] = std::thread([=] { reduce(local_results[i]); });
 
         // join mappers and reducers
         for (int i = 0; i < nw_mapper; i++)

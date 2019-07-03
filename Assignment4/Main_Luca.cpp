@@ -1,12 +1,8 @@
-#include <thread>
-
 #include <unistd.h>
-#include <condition_variable>
 #include <iostream>
-#include <mutex>
 #include <utility>
 #include <vector>
-#include "./MapReduce.h"
+#include "./map_reduce_Luca.h"
 
 //SafeQueue<std::pair<int, int>> global_results;
 
@@ -28,26 +24,31 @@ void increment_or_insert_item(std::vector<std::pair<int, int>> local_results, in
     }
 }
 
-void count_numbers_map(std::vector<int> data, int startIdx, int endIdx,
-                       std::vector<SafeQueue<std::pair<int, int>>*> results) {
-    std::vector<std::pair<int, int>> local_results;
+template<typename T>
+std::pair<T,int> count_numbers_map(T item){
+	return std::make_pair(item, 1);
+}
 
-    for (int i = startIdx; i <= endIdx; i++) {
-        int item = data[i];
+  //std::pair<int, int> count_numbers_map(int item, std::vector<SafeQueue<std::pair<int, int>>*> results) {
+
+    //std::vector<std::pair<int, int>> local_results;
+    //for (int i = startIdx; i <= endIdx; i++) {
+        //int item = data[i];
         //increment_or_insert_item(local_results, item);
-        int index = findItem(local_results, item);
-        if (index == -1) {
-            local_results.push_back(std::make_pair(item, 1));
-        } else {
-            local_results[index].second++;
-        }
-    }
+        //int index = findItem(results, item);
+        //return std::make_pair(item, 1);
+        //if (index == -1) {
+          //  results.push_back(std::make_pair(item, 1));
+      //  } else {
+        //    results[index].second++;
+        //}
+    //}
 
     // push local results to reducers queue
-    int nw_reducers = results.size();
-    for (auto i : local_results)
-        results[i.first % nw_reducers]->safe_push(i);
-}
+    //int nw_reducers = results.size();
+    //for (auto i : local_results)
+    //    results[i.first % nw_reducers]->safe_push(i);
+//}
 
 std::vector<std::pair<int, int>> count_numbers_reduce(SafeQueue<std::pair<int, int>>* queue) {
     std::vector<std::pair<int, int>> local_results;
@@ -73,10 +74,13 @@ int main(int argc, char* argv[]) {
     int nw_mapper = atoi(argv[1]);
     int nw_reducer = atoi(argv[2]);
 
-    std::vector<int> data = {2, 3, 3, 4, 6, 2, 4, 6, 6, 5, 6};
+    std::vector<int> data = {2, 3, 3, 4, 6, 2, 4, 6, 6, 5, 6, 1, 1, 1, 1, 1};
+    for(auto i:data)
+      std::cout << i << " ";
+    std::cout << std::endl;
 
-    MapReduce<int> mr(5, 1);
-    mr.map_and_reduce(data, count_numbers_map, count_numbers_reduce);
+    MapReduce<int> mr(nw_mapper, nw_reducer);
+    mr.map_and_reduce(data, count_numbers_map<int>);
     mr.print_results();
 
     //std::vector<std::thread> mappers(nw_mapper);
