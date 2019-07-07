@@ -4,7 +4,7 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
-#include "./safe_queue.h"
+#include "../safe_queue.h"
 
 template <class T>
 class MapReduce {
