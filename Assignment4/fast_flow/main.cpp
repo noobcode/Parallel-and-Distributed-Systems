@@ -24,6 +24,10 @@ int findItem(std::vector<std::pair<T, int>> local_results, T item) {
     return -1;
 }
 
+/*
+    Left worker of the a2a building block. 
+    Here we compute the map function.
+*/
 template <typename T>
 struct map_worker : ff_monode_t<std::pair<T, int>> {
     map_worker(std::function<std::pair<T, int>(T)> f_map,
@@ -59,47 +63,35 @@ struct map_worker : ff_monode_t<std::pair<T, int>> {
     std::hash<T> hasher;
 };
 
-// R-Worker
+/*
+    Right worker of the a2a building block. 
+    Here we compute the reduce function.
+    This function store a vector of partial results, when the computation
+    is over we access this vector to print the final result of the map reduce.
+*/
 template <typename T>
 struct reduce_worker : ff_minode_t<std::pair<T, int>> {
-    std::pair<std::string, int> *svc(std::pair<std::string, int> *in) {
-        try {
-            std::pair<std::string, int> &pair = *in;
-            int index = findItem(temp_results, pair.first);
-            if (index == -1)
-                temp_results.push_back(pair);
-            else
-                temp_results[index].second += pair.second;
-        } catch (MyException &e) {
-            return this->EOS;
-        }
-
+    std::pair<T, int> *svc(std::pair<T, int> *in) {
+        std::pair<T, int> &pair = *in;
+        int index = findItem(temp_results, pair.first);
+        if (index == -1)
+            temp_results.push_back(pair);
+        else
+            temp_results[index].second += pair.second;
+        // I have no more tasks to send out, give me another input task (if any)
         return this->GO_ON;
-    }
-
-    void
-    svc_end() {
-        // push to global results
-        for (auto i : temp_results) {
-            std::cout << i.first << "," << i.second << std::endl;
-            //this->ff_send_out_to()
-        }
-        std::cout << "EOS received\n";
     }
 
     std::vector<std::pair<T, int>> temp_results;
 };
 
-int main(int argc, char *argv[]) {
-    int nw_mapper = atoi(argv[1]);
-    int nw_reducer = atoi(argv[2]);
-
-    std::vector<std::string> data = {"ciao", "mondo", "roma", "lazio", "italia", "lex", "ciao", "italia", "roma"};
-
-    for (auto i : data)
-        std::cout << i << " ";
-    std::cout << std::endl;
-
+/*
+    Function that start the map reduce.
+    We created this function because we need to use the general
+    type T and we can't use it in the main function. 
+*/
+template <typename T>
+void setup(std::vector<T> data, int nw_reducer, int nw_mapper) {
     std::vector<ff_node *> map_workers;
     std::vector<ff_node *> reduce_workers;
 
@@ -109,23 +101,50 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < nw_mapper; i++) {
         int startIdx = i * dim;
         int endIdx = i == nw_mapper - 1 ? data.size() - 1 : (i + 1) * dim - 1;
-        map_workers.push_back(new map_worker<std::string>(count_numbers_map<std::string>, data, startIdx, endIdx));
+        map_workers.push_back(new map_worker<T>(count_numbers_map<T>, data, startIdx, endIdx));
     }
 
     // create reducers
     for (int i = 0; i < nw_reducer; i++)
-        reduce_workers.push_back(new reduce_worker<std::string>());
+        reduce_workers.push_back(new reduce_worker<T>());
 
+    // Create all to all
     ff_a2a a2a;
-    a2a.add_firstset(map_workers, 0, true);
+    a2a.add_firstset(map_workers);
     a2a.add_secondset(reduce_workers);
 
     if (a2a.run_and_wait_end() < 0)
-        error("running a2a");
+        error("Error running pipe");
 
-    //farm_map()
-    //farm_reduce()
-    //pipe(farm_map, farm_reduce)
+    // getting results from reducers
+    std::vector<std::pair<T, int>> results;
+    for (int i = 0; i < nw_reducer; i++) {
+        reduce_worker<T> *r = reinterpret_cast<reduce_worker<T> *>(reduce_workers[i]);
+        if (r->temp_results.size())
+            results.insert(std::upper_bound(results.begin(), results.end(),
+                                            r->temp_results[0]),
+                           r->temp_results.begin(), r->temp_results.end());
+    }
+
+    // printing results:
+    for (auto pair : results) {
+        std::cout << pair.first << ", " << pair.second << std::endl;
+    }
+}
+
+int main(int argc, char *argv[]) {
+    std::vector<std::string> dataString = {"ciao", "mondo", "roma", "lazio", "italia", "lex", "ciao", "italia", "roma"};
+    std::vector<int> dataInt = {12, 3, 4, 5, 3, 4, 12, 16, 2, 3, 4, 6, 12, 20, 3, 5, 20, 16, 12};
+
+    // for (auto i : data)
+    //     std::cout << i << " ";
+    // std::cout << std::endl;
+
+    std::cout << "First test, with strings" << std::endl;
+    setup(dataString, atoi(argv[1]), atoi(argv[2]));
+
+    std::cout << "Second test, with integers" << std::endl;
+    setup(dataInt, atoi(argv[1]), atoi(argv[2]));
 
     return 0;
 }
