@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include "./MapReduce.h"
+#include "./utimer.hpp"
 
 
 template <typename T>
