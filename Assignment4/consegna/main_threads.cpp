@@ -6,7 +6,7 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
-#include "../MapReduce.h"
+#include "./MapReduce.h"
 #include "utimer.hpp"
 
 
@@ -26,6 +26,11 @@ void setup(std::vector<T> data, int nw_mapper, int nw_reducer) {
 }
 
 int main(int argc, char* argv[]) {
+    if(argc < 3){
+      std::cout << "usage: " << argv[0] << " nw_mapper nw_reducer" << std::endl;
+      return 0;
+    }
+
     std::vector<std::string> dataString = {"ciao", "mondo", "roma", "lazio", "italia", "lex", "ciao", "italia", "roma"};
     std::vector<double> dataDouble = {4.0, 5.1, 6.0, 2, 0, 5.1, 4.0, 6.0, 5.1};
     std::vector<int> dataInt = {12, 3, 4, 5, 3, 4, 12, 16, 2, 3, 4, 6, 12, 20, 3, 5, 20, 16, 12};
