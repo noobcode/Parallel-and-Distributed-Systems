@@ -17,7 +17,10 @@ std::pair<T, int> count_numbers_map(T item) {
 template <typename T>
 void setup(std::vector<T> data, int nw_mapper, int nw_reducer) {
     MapReduce<T> mr(nw_mapper, nw_reducer);
-    mr.map_and_reduce(data, count_numbers_map<T>);
+    {
+        utimer t("Map Reduce");
+        mr.map_and_reduce(data, count_numbers_map<T>);
+    }
     mr.print_results();
 }
 
@@ -32,11 +35,14 @@ int main(int argc, char* argv[]) {
 
     // First test with strings
     std::cout << "Test with strings" << std::endl;
+
     setup(dataString, atoi(argv[1]), atoi(argv[2]));
+    std::cout << "" << std::endl;
 
     // Second test with integers
     std::cout << "Test with integers" << std::endl;
     setup(dataInt, atoi(argv[1]), atoi(argv[2]));
+    std::cout << "" << std::endl;
 
     // Third test with doubles
     std::cout << "Test with doubles" << std::endl;
