@@ -4,7 +4,7 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
-#include "./MapReduce.h"
+#include "../MapReduce.h"
 
 template <typename T>
 std::pair<T, int> count_numbers_map(T item) {
