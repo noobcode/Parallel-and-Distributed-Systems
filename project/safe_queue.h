@@ -22,7 +22,7 @@ template <class T> class SafeQueue{
     public:
         SafeQueue(int my_size) : max_size(my_size) {};
         //SafeQueue() : max_size(std::numeric_limits<unsigned int>::max()) { std::cout << "other\n";};
-        SafeQueue() : max_size(1) {};
+        //SafeQueue() : max_size(1) {};
 
         void safePush(T item){  //max size
             std::unique_lock<std::mutex> lock(d_mutex);
@@ -41,7 +41,7 @@ template <class T> class SafeQueue{
         }
 
         int safeSize(){
-             std::lock_guard<std::mutex> lock(d_mutex);
+             std::unique_lock<std::mutex> lock(d_mutex);
              return this->queue.size();
         }
 
