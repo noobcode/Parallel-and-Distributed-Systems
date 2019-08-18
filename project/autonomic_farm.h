@@ -5,6 +5,7 @@
 #define __AUTONOMIC_FARM_H__
 
 #include "./farm_emitter.h"
+#include "./farm_worker.h"
 #include <iostream>
 #include "./safe_queue.h"
 
@@ -19,7 +20,7 @@ private:
   std::vector<SafeQueue<int>*>* task_queues; // unilateral channels from Emitter to each Worker
 
   FarmEmitter emitter;
-  //std::vector<FarmWorker> workers;
+  std::vector<FarmWorker> workers;
   //FarmCollector collector;
   //FarmManager manager;
 
@@ -33,10 +34,20 @@ public:
   // contructors
   AutonomicFarm(unsigned int max_nw) : max_nw(max_nw),
                                        workers_requests(new SafeQueue<int>(max_nw)),
-                                       task_queues(new std::vector<SafeQueue<int>*>(max_nw, new SafeQueue<int>(1))),
-                                       emitter(max_nw, this->workers_requests, this->task_queues)
+                                       task_queues(new std::vector<SafeQueue<int>*>(max_nw)),
+                                       emitter(max_nw, this->workers_requests, this->task_queues),
+                                       workers(max_nw, FarmWorker(-1, this->workers_requests, nullptr))
   {
-    std::cout << "creating farm" << std::endl;
+    // allocate task queues
+    for(size_t i = 0; i < max_nw; i++)
+      task_queues->at(i) = new SafeQueue<int>(1);
+
+    // assign an ID and a task queue to each worker
+    for(size_t i = 0; i < max_nw; i++){
+      workers[i].setWorkerId(i);
+      workers[i].setTaskQueue(task_queues->at(i));
+    }
+    
     std::cout << "farm created" << std::endl;
   };
 
@@ -55,20 +66,22 @@ public:
     std::cout << "==== FARM ====" << std::endl;
     std::cout << "max_nw:" << max_nw << std::endl;
 
+    std::cout << "(Workers->Emitter) workers_requests: address/"
+              << workers_requests << " - size/"
+              << workers_requests->safeSize() <<  " - max_size/"
+              << workers_requests->maxSize() << std::endl;
 
-    std::cout << "farm workers_requests: " << workers_requests << " - " << workers_requests->maxSize() << std::endl;
-
-
-    // inizialmente vuota, dim max = max_nw
-    std::cout << "size and max size of W->E queue...";
-    std::cout << workers_requests->safeSize() << std::endl << workers_requests->maxSize() << std::endl;
-
-    std::cout << "task_queues size: " << task_queues->size() << std::endl;
-    std::cout << "size and max size of E->W queue...\n";
+    std::cout << "(Emitter->Workers) task_queues: address/"
+              << task_queues << " - size/"
+              << task_queues->size() << std::endl;
     for(size_t i=0; i < task_queues->size(); i++)
-      std::cout << (*task_queues)[i]->safeSize() << " - " << (*task_queues)[i]->maxSize() << std::endl;
+      std::cout << (*task_queues)[i] << " - "
+                << (*task_queues)[i]->safeSize() << " - "
+                << (*task_queues)[i]->maxSize() << std::endl;
 
     emitter.printEmitter();
+    for(size_t i = 0; i < max_nw; i++)
+      workers[i].printWorker();
   }
 
 };

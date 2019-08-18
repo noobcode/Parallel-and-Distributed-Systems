@@ -33,7 +33,7 @@ public:
       int task = tasks[i];
       std::cout << task << std::endl;
       // receive disponibility from a worker
-      //int worker_id = workers_requests->safePop();
+      // int worker_id = workers_requests->safePop();
       // send data to worker
       // (dopo controlla anche che il worker sia disponibile, nw attivi potrebbe essere cambiato,
       // in caso continua a poppare e controllare finche non trovi uno disponibile e attivo)
@@ -62,22 +62,22 @@ public:
   }
 
   void printEmitter(){
-    std::cout << "===== EMITTER ====" << std::endl;
+    std::cout << "==== EMITTER ====" << std::endl;
     std::cout << "max_nw:" << max_nw << std::endl;
 
+    std::cout << "(Workers->Emitter) workers_requests: address/"
+              << workers_requests << " - size/"
+              << workers_requests->safeSize() <<  " - max_size/"
+              << workers_requests->maxSize() << std::endl;
 
-    std::cout << "farm workers_requests: " << workers_requests << " - " << workers_requests->maxSize() << std::endl;
-
-
-    // inizialmente vuota, dim max = max_nw
-    std::cout << "size and max size of W->E queue...";
-    std::cout << workers_requests->safeSize() << std::endl << workers_requests->maxSize() << std::endl;
-
-    std::cout << "task_queues size: " << task_queues->size() << std::endl;
-    std::cout << "size and max size of E->W queue...\n";
+    std::cout << "(Emitter->Workers) task_queues: address/"
+              << task_queues << " - size/"
+              << task_queues->size() << std::endl;
     for(size_t i=0; i < task_queues->size(); i++)
-      std::cout << (*task_queues)[i]->safeSize() << " - " << (*task_queues)[i]->maxSize() << std::endl;
+      std::cout << (*task_queues)[i] << " - "
+                << (*task_queues)[i]->safeSize() << " - "
+                << (*task_queues)[i]->maxSize() << std::endl;
   }
-
+  
 };
 #endif // __FARM_EMITTER_H__

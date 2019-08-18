@@ -17,12 +17,12 @@ template <class T> class SafeQueue{
         std::condition_variable p_condition;        //producer
         std::condition_variable c_condition;        //consumer
         std::queue<T> queue;  //initialize a local queue
-        const int max_size;
+        const size_t max_size;
 
     public:
-        SafeQueue(int my_size) : max_size(my_size) {};
+        SafeQueue(size_t my_size) : max_size(my_size) {};
         //SafeQueue() : max_size(std::numeric_limits<unsigned int>::max()) { std::cout << "other\n";};
-        //SafeQueue() : max_size(1) {};
+        SafeQueue() : max_size(1) { std::cout << "aio\n";};
 
         void safePush(T item){  //max size
             std::unique_lock<std::mutex> lock(d_mutex);
@@ -40,7 +40,7 @@ template <class T> class SafeQueue{
             return false;
         }
 
-        int safeSize(){
+        size_t safeSize(){
              std::unique_lock<std::mutex> lock(d_mutex);
              return this->queue.size();
         }
@@ -67,7 +67,7 @@ template <class T> class SafeQueue{
             return this->queue.empty();
         }
 
-        int maxSize(){
+        size_t maxSize(){
           return this->max_size;
         }
 
