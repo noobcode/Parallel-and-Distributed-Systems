@@ -12,6 +12,7 @@ private:
   unsigned int worker_id;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   SafeQueue<Task*>* task_queue; // unilateral channels from Emitter to each Worker
+  SafeQueue<Task*>* output_stream; // where all workers put the results
   std::function<int(int)> f;
   std::thread* worker_thread;
 
@@ -20,9 +21,11 @@ public:
   FarmWorker(unsigned int worker_id,
              SafeQueue<int>* workers_requests,
              SafeQueue<Task*>* task_queue,
+             SafeQueue<Task*>* output_stream,
              std::function<int(int)> f): worker_id(worker_id),
                                          workers_requests(workers_requests),
                                          task_queue(task_queue),
+                                         output_stream(output_stream),
                                          f(f)
   {
     std::cout << "creating worker..." << std::endl;
@@ -30,22 +33,25 @@ public:
 
 
   void run(){
-    worker_thread = new std::thread(body, f, worker_id, workers_requests, task_queue);
+    worker_thread = new std::thread(body, f, worker_id, workers_requests, task_queue, output_stream);
   }
 
-  static void body(std::function<int(int)> f, unsigned int worker_id, SafeQueue<int>* workers_requests, SafeQueue<Task*>* task_queue){
+  static void body(std::function<int(int)> f,
+                   unsigned int worker_id,
+                   SafeQueue<int>* workers_requests,
+                   SafeQueue<Task*>* task_queue,
+                   SafeQueue<Task*>* output_stream){
     while(true){
       // worker tells emitter that is ready
       workers_requests->safePush(worker_id);
       // worker waits for task
       Task* task = task_queue->safePop();
-      if(task->isEOS()){
-        break;
-      }
+      if(task->isEOS()) break;
+
       auto result = f(task->getData());
-      std::cout << "worker " << worker_id << " result " << result << std::endl;
-      //send(result)
+      output_stream->safePush(new Task(result));
     }
+    output_stream->safePush(Task::EOS());
   }
 
   void join(){
@@ -72,6 +78,10 @@ void printWorker(){
             << task_queue << " - size/"
             << task_queue->safeSize() << "- max_size/"
             << task_queue->maxSize() << std::endl;
+
+  std::cout << "(Workers->Collector) output_stream: address/" << output_stream
+            << " - size/" << output_stream->safeSize()
+            << " - max_size/" << output_stream->maxSize() << std::endl;
 }
 
 

@@ -1,11 +1,9 @@
-//#pragma once
-
-//The following is the #include header guard.
 #ifndef __AUTONOMIC_FARM_H__
 #define __AUTONOMIC_FARM_H__
 
 #include "./farm_emitter.h"
 #include "./farm_worker.h"
+#include "./farm_collector.h"
 #include <iostream>
 #include "./safe_queue.h"
 #include "./task.h"
@@ -19,10 +17,12 @@ private:
   //std::atomic<size_t> nw;     // current number of active workers
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   std::vector<SafeQueue<Task*>*>* task_queues; // unilateral channels from Emitter to each Worker
+  SafeQueue<Task*>* workers_result; // queue where workers push results
+  SafeQueue<int>* output_stream;    // queue where collector pushs results
 
   FarmEmitter emitter;
   std::vector<FarmWorker> workers;
-  //FarmCollector collector;
+  FarmCollector collector;
   //FarmManager manager;
 
   //TaskSlot worker_tasks; // queue of size one, item i is the slot for worker i
@@ -37,8 +37,11 @@ public:
                 std::function<int(int)> f) : max_nw(max_nw),
                                        workers_requests(new SafeQueue<int>(max_nw)),
                                        task_queues(new std::vector<SafeQueue<Task*>*>(max_nw)),
+                                       workers_result(new SafeQueue<Task*>),
+                                       output_stream(new SafeQueue<int>),
                                        emitter(max_nw, this->workers_requests, this->task_queues),
-                                       workers(max_nw, FarmWorker(-1, this->workers_requests, nullptr, f))
+                                       workers(max_nw, FarmWorker(-1, this->workers_requests, nullptr, workers_result, f)),
+                                       collector(max_nw, this->workers_result, this->output_stream)
   {
     // allocate task queues
     for(size_t i = 0; i < max_nw; i++)
@@ -59,12 +62,16 @@ public:
     emitter.run(tasks);
     for(size_t i = 0; i < max_nw; i++)
       workers[i].run();
-    //collector.run();
+    collector.run();
     //manager.run();
 
+    // join threads
     emitter.join();
-    for(size_t i = 0; i < max_nw; i++)
+    for(size_t i = 0; i < max_nw; i++){
       workers[i].join();
+    }
+    collector.join();
+
   }
 
   void print_af(){
@@ -84,11 +91,25 @@ public:
                 << (*task_queues)[i]->safeSize() << " - "
                 << (*task_queues)[i]->maxSize() << std::endl;
 
+    // collector
+    std::cout << "(Workers->Collector) input_stream: address/" << workers_result
+              << " - size/" << workers_result->safeSize()
+              << " - max_size/" << workers_result->maxSize() << std::endl;
+
+    std::cout << "(results) output_stream: address/" << output_stream
+              << " - size/" << output_stream->safeSize()
+              << " - max_size/" << output_stream->maxSize() << std::endl;
+
     emitter.printEmitter();
     for(size_t i = 0; i < max_nw; i++)
       workers[i].printWorker();
+    collector.printCollector();
   }
 
+  void printResults(){
+    std::cout << "results:" << std::endl;
+    output_stream->empty_and_print();
+  }
 };
 
 #endif // __AUTONOMIC_FARM_H__

@@ -21,8 +21,8 @@ template <class T> class SafeQueue{
 
     public:
         SafeQueue(size_t my_size) : max_size(my_size) {};
-        //SafeQueue() : max_size(std::numeric_limits<unsigned int>::max()) { std::cout << "other\n";};
-        SafeQueue() : max_size(1) { std::cout << "aio\n";};
+        SafeQueue() : max_size(std::numeric_limits<unsigned int>::max()) {};
+        //SafeQueue() : max_size(1) {};
 
         void safePush(T item){  //max size
             std::unique_lock<std::mutex> lock(d_mutex);
@@ -53,15 +53,7 @@ template <class T> class SafeQueue{
             p_condition.notify_one();      //wake a producer since 1 element has been popped from
             return popped;
         }
-/*
-        void empty_and_print(){
-            while(!this->queue.empty()){
-                T popped = this->queue.front();
-                this->queue.pop();
-                std::cout << popped << std::endl;
-            }
-        }
-*/
+
         bool isEmpty(){
             std::unique_lock<std::mutex> lock(d_mutex);
             return this->queue.empty();
@@ -69,6 +61,14 @@ template <class T> class SafeQueue{
 
         size_t maxSize(){
           return this->max_size;
+        }
+
+        void empty_and_print(){
+            while(!this->queue.empty()){
+                T popped = this->queue.front();
+                this->queue.pop();
+                std::cout << popped << std::endl;
+            }
         }
 
 };
