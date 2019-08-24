@@ -1,7 +1,7 @@
 #ifndef __FARM_COLLECTOR_H__
 #define __FARM_COLLECTOR_H__
 
-#include "./task.h"
+#include "./farm_utility.h"
 #include "./safe_queue.h"
 #include <thread>
 

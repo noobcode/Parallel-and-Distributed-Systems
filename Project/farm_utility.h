@@ -1,5 +1,5 @@
-#ifndef __TASK_H__
-#define __TASK_H__
+#ifndef __FARM_UTILITY_H__
+#define __FARM_UTILITY_H__
 
 #include<cstddef>
 
@@ -25,4 +25,4 @@ private:
   Task(bool is_EOS): is_EOS(is_EOS) {};
 };
 
-#endif //__TASK_H__
+#endif //__FARM_UTILITY_H__

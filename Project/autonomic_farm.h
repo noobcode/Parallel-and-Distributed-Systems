@@ -4,31 +4,26 @@
 #include "./farm_emitter.h"
 #include "./farm_worker.h"
 #include "./farm_collector.h"
-#include <iostream>
+#include "./farm_manager.h"
 #include "./safe_queue.h"
-#include "./task.h"
+#include "./farm_utility.h"
 
-enum WorkerStatus {inactive, active};
+#include <iostream>
+#include <chrono>
 
 //template <class T> class AutonomicFarm
 class AutonomicFarm{
 private:
   unsigned int max_nw; // maximum number of workers
-  //std::atomic<size_t> nw;     // current number of active workers
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   std::vector<SafeQueue<Task*>*>* task_queues; // unilateral channels from Emitter to each Worker
   SafeQueue<Task*>* workers_result; // queue where workers push results
   SafeQueue<int>* output_stream;    // queue where collector pushs results
 
   FarmEmitter emitter;
-  std::vector<FarmWorker> workers;
+  std::vector<FarmWorker*>* workers;
   FarmCollector collector;
-  //FarmManager manager;
-
-  //TaskSlot worker_tasks; // queue of size one, item i is the slot for worker i
-  //WorkerStatus worker_status[];
-  //std::atomic<size_t> last_active_worker;
-  //unsigned int service_time_goal;
+  FarmManager manager;
   // TODO save statistics for later access
 
 public:
@@ -40,38 +35,48 @@ public:
                                        workers_result(new SafeQueue<Task*>),
                                        output_stream(new SafeQueue<int>),
                                        emitter(max_nw, this->workers_requests, this->task_queues),
-                                       workers(max_nw, FarmWorker(-1, this->workers_requests, nullptr, workers_result, f)),
-                                       collector(max_nw, this->workers_result, this->output_stream)
+                                       workers( new std::vector<FarmWorker*>(max_nw)),
+                                       collector(max_nw, this->workers_result, this->output_stream),
+                                       manager(max_nw, workers)
   {
+    // TODO unify for loops
+    for(size_t i = 0; i < max_nw; i++)
+      workers->at(i) = new FarmWorker(-1, workers_requests, nullptr, workers_result, f, ACTIVE);
+
     // allocate task queues
     for(size_t i = 0; i < max_nw; i++)
       task_queues->at(i) = new SafeQueue<Task*>(1);
 
     // assign an ID and a task queue to each worker
     for(size_t i = 0; i < max_nw; i++){
-      workers[i].setWorkerId(i);
-      workers[i].setTaskQueue(task_queues->at(i));
+      workers->at(i)->setWorkerId(i);
+      workers->at(i)->setTaskQueue(task_queues->at(i));
     }
-
-    std::cout << "farm created" << std::endl;
   };
 
   // methods
-  void run_and_wait(std::vector<int> tasks){
-    std::cout << "farm executing..." << std::endl;
+
+  void run(std::vector<int> tasks){
     emitter.run(tasks);
     for(size_t i = 0; i < max_nw; i++)
-      workers[i].run();
+      workers->at(i)->run();
     collector.run();
     //manager.run();
+  }
 
+  void wait(){
     // join threads
     emitter.join();
     for(size_t i = 0; i < max_nw; i++){
-      workers[i].join();
+      workers->at(i)->join();
     }
     collector.join();
+    //magager.join();
+  }
 
+  void run_and_wait(std::vector<int> tasks){
+    run(tasks);
+    wait();
   }
 
   void print_af(){
@@ -102,7 +107,7 @@ public:
 
     emitter.printEmitter();
     for(size_t i = 0; i < max_nw; i++)
-      workers[i].printWorker();
+      workers->at(i)->printWorker();
     collector.printCollector();
   }
 
@@ -111,5 +116,6 @@ public:
     output_stream->empty_and_print();
   }
 };
+
 
 #endif // __AUTONOMIC_FARM_H__
