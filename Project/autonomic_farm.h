@@ -20,7 +20,7 @@ private:
   std::vector<SafeQueue<Task*>*>* task_queues; // unilateral channels from Emitter to each Worker
   SafeQueue<Task*>* workers_result; // queue where workers push results
   SafeQueue<int>* output_stream;    // queue where collector pushs results
-  SafeQueue<std::chrono::milliseconds*>* latency_queue;
+  SafeQueue<std::chrono::microseconds*>* latency_queue;
 
   FarmEmitter emitter;
   std::vector<FarmWorker*>* workers;
@@ -37,7 +37,7 @@ public:
                                        task_queues(new std::vector<SafeQueue<Task*>*>(max_nw)),
                                        workers_result(new SafeQueue<Task*>),
                                        output_stream(new SafeQueue<int>),
-                                       latency_queue(new SafeQueue<std::chrono::milliseconds*>),
+                                       latency_queue(new SafeQueue<std::chrono::microseconds*>),
                                        emitter(max_nw, workers_requests, task_queues),
                                        workers(new std::vector<FarmWorker*>(max_nw)),
                                        collector(max_nw, workers_result, output_stream),
@@ -60,7 +60,7 @@ public:
 
   // methods
 
-  void run(std::vector<int> tasks, unsigned int nw_initial, std::chrono::milliseconds service_time_goal){
+  void run(std::vector<int> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal){
     emitter.run(tasks);
     for(size_t i = 0; i < max_nw; i++)
       workers->at(i)->run();
@@ -78,7 +78,7 @@ public:
     manager.join();
   }
 
-  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::milliseconds service_time_goal){
+  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal){
     run(tasks, nw_initial, service_time_goal);
     wait();
   }

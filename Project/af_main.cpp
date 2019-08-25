@@ -4,14 +4,19 @@
 #include "./autonomic_farm.h"
 
 int my_f(int x){
-  return x;
+  long int sum = 0;
+  for(int i = 0; i < 100*x; i++)
+    sum += i*i + i;
+  for(int i = 0; i < 100*x; i++)
+    sum -= i*i;
+  return sum;
 }
 
 int main(int argc, const char* argv[]){
-  std::vector<int> tasks = {97, 98, 99, 100, 101, 102};
+  std::vector<int> tasks = {100, 100, 100, 100, 100, 500, 500, 1000, 1000, 50, 50, 50};
 
-  size_t max_nw = 4;
-  std::chrono::milliseconds service_time_goal(1000);
+  size_t max_nw = 8;
+  std::chrono::microseconds service_time_goal(100);
   unsigned int nw_initial = 2;
 
   AutonomicFarm farm(max_nw, my_f);
