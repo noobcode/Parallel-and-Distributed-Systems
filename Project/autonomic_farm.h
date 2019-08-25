@@ -15,15 +15,18 @@
 class AutonomicFarm{
 private:
   unsigned int max_nw; // maximum number of workers
+
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   std::vector<SafeQueue<Task*>*>* task_queues; // unilateral channels from Emitter to each Worker
   SafeQueue<Task*>* workers_result; // queue where workers push results
   SafeQueue<int>* output_stream;    // queue where collector pushs results
+  SafeQueue<std::chrono::milliseconds*>* latency_queue;
 
   FarmEmitter emitter;
   std::vector<FarmWorker*>* workers;
   FarmCollector collector;
   FarmManager manager;
+
   // TODO save statistics for later access
 
 public:
@@ -34,14 +37,15 @@ public:
                                        task_queues(new std::vector<SafeQueue<Task*>*>(max_nw)),
                                        workers_result(new SafeQueue<Task*>),
                                        output_stream(new SafeQueue<int>),
-                                       emitter(max_nw, this->workers_requests, this->task_queues),
-                                       workers( new std::vector<FarmWorker*>(max_nw)),
-                                       collector(max_nw, this->workers_result, this->output_stream),
-                                       manager(max_nw, workers)
+                                       latency_queue(new SafeQueue<std::chrono::milliseconds*>),
+                                       emitter(max_nw, workers_requests, task_queues),
+                                       workers(new std::vector<FarmWorker*>(max_nw)),
+                                       collector(max_nw, workers_result, output_stream),
+                                       manager(max_nw, workers, latency_queue)
   {
     // TODO unify for loops
     for(size_t i = 0; i < max_nw; i++)
-      workers->at(i) = new FarmWorker(-1, workers_requests, nullptr, workers_result, f, ACTIVE);
+      workers->at(i) = new FarmWorker(-1, workers_requests, nullptr, workers_result, latency_queue, f, INACTIVE);
 
     // allocate task queues
     for(size_t i = 0; i < max_nw; i++)
@@ -56,12 +60,12 @@ public:
 
   // methods
 
-  void run(std::vector<int> tasks){
+  void run(std::vector<int> tasks, unsigned int nw_initial, std::chrono::milliseconds service_time_goal){
     emitter.run(tasks);
     for(size_t i = 0; i < max_nw; i++)
       workers->at(i)->run();
     collector.run();
-    //manager.run();
+    manager.run(nw_initial, service_time_goal);
   }
 
   void wait(){
@@ -71,15 +75,15 @@ public:
       workers->at(i)->join();
     }
     collector.join();
-    //magager.join();
+    manager.join();
   }
 
-  void run_and_wait(std::vector<int> tasks){
-    run(tasks);
+  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::milliseconds service_time_goal){
+    run(tasks, nw_initial, service_time_goal);
     wait();
   }
 
-  void print_af(){
+  void printFarm(){
     std::cout << "==== FARM ====" << std::endl;
     std::cout << "max_nw:" << max_nw << std::endl;
 
@@ -109,6 +113,7 @@ public:
     for(size_t i = 0; i < max_nw; i++)
       workers->at(i)->printWorker();
     collector.printCollector();
+    manager.printManager();
   }
 
   void printResults(){

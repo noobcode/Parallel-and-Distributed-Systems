@@ -17,6 +17,7 @@ private:
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   SafeQueue<Task*>* task_queue; // unilateral channels from Emitter to each Worker
   SafeQueue<Task*>* output_stream; // where all workers put the results
+  SafeQueue<std::chrono::milliseconds*>* latency_queue;
   std::function<int(int)> f;
   WorkerStatus status_worker;
 
@@ -30,11 +31,13 @@ public:
              SafeQueue<int>* workers_requests,
              SafeQueue<Task*>* task_queue,
              SafeQueue<Task*>* output_stream,
+             SafeQueue<std::chrono::milliseconds*>* latency_queue,
              std::function<int(int)> f,
              WorkerStatus status_worker): worker_id(worker_id),
                                           workers_requests(workers_requests),
                                           task_queue(task_queue),
                                           output_stream(output_stream),
+                                          latency_queue(latency_queue),
                                           f(f),
                                           status_worker(status_worker)
   {
@@ -42,15 +45,8 @@ public:
     status_condition = new std::condition_variable();
   };
 
-  static void body(std::function<int(int)> f,
-                   unsigned int worker_id,
-                   SafeQueue<int>* workers_requests,
-                   SafeQueue<Task*>* task_queue,
-                   SafeQueue<Task*>* output_stream,
-                   WorkerStatus status_worker,
-                   std::mutex* status_mutex,
-                   std::condition_variable* status_condition){
-
+  void body(){
+    //std::chrono::system_clock::time_point tic, toc;
     while(true){
       {
         std::unique_lock<std::mutex> lock(*status_mutex);
@@ -62,15 +58,17 @@ public:
       Task* task = task_queue->safePop();
       if(task->isEOS()) break;
 
+
       auto result = f(task->getData());
+
       output_stream->safePush(new Task(result));
     }
+    latency_queue->safePush(new std::chrono::milliseconds(-1));
     output_stream->safePush(Task::EOS());
   }
 
   void run(){
-    worker_thread = new std::thread(body, f, worker_id, workers_requests,
-      task_queue, output_stream, status_worker, status_mutex, status_condition);
+    worker_thread = new std::thread(&FarmWorker::body, this);
   }
 
   void join(){

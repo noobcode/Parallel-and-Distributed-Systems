@@ -17,43 +17,35 @@ private:
 
 public:
   // constructors
-  //FarmEmitter() = delete;
   FarmEmitter(int max_nw,
               SafeQueue<int>* workers_requests,
               std::vector<SafeQueue<Task*>*>* task_queues) : max_nw(max_nw),
                                                            workers_requests(workers_requests),
-                                                           task_queues(task_queues)
-  {
-    std::cout << "creating emitter..." << std::endl;
-  };
+                                                           task_queues(task_queues) {};
 
   // methods
-  static void emitTasks(std::vector<int> data_stream, SafeQueue<int>* workers_requests, std::vector<SafeQueue<Task*>*>* task_queues){ // TODO template
+  void emitTasks(std::vector<int> data_stream){ // TODO template
     for(size_t i=0; i < data_stream.size(); i++){
       // receive data from input stream
       Task* task = new Task(data_stream[i]);
-      //std::cout << task << std::endl;
       // receive disponibility from a worker
-      int worker_id = workers_requests->safePop();
-      // send data to worker
-      // (dopo controlla anche che il worker sia disponibile, nw attivi potrebbe essere cambiato,
-      // in caso continua a poppare e controllare finche non trovi uno disponibile e attivo)
-      task_queues->at(worker_id)->safePush(task); // TODO task_queues is a vector of one-slot safe_queue
+      int worker_id = this->workers_requests->safePop();
+      this->task_queues->at(worker_id)->safePush(task); // TODO task_queues is a vector of one-slot safe_queue
     }
   }
 
-  static void sendEOS(unsigned int max_nw, std::vector<SafeQueue<Task*>*>* task_queues){
-    for(size_t i = 0; i < max_nw; i++)
-      task_queues->at(i)->safePush(Task::EOS());
+  void sendEOS(){
+    for(size_t i = 0; i < this->max_nw; i++)
+      this->task_queues->at(i)->safePush(Task::EOS());
   }
 
-  static void emitterJob(std::vector<int> data, unsigned int max_nw, SafeQueue<int>* workers_requests, std::vector<SafeQueue<Task*>*>* task_queues){
-    FarmEmitter::emitTasks(data, workers_requests, task_queues);
-    FarmEmitter::sendEOS(max_nw, task_queues);
+  void body(std::vector<int> data){
+    emitTasks(data);
+    sendEOS();
   }
 
   void run(std::vector<int> data){
-    emitter_thread = new std::thread(FarmEmitter::emitterJob, data, max_nw, workers_requests, task_queues);
+    emitter_thread = new std::thread(&FarmEmitter::body, this, data);
   }
 
   void join(){
