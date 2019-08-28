@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <thread>
+#include <cmath>
 #include "./farm_worker.h"
 
 class FarmManager{
@@ -14,27 +15,28 @@ private:
   SafeQueue<std::chrono::microseconds*>* latency_queue;
   std::thread* manager_thread;
 
+  std::vector<std::chrono::microseconds> service_time_history;
+
 public:
   FarmManager(float alpha,
               unsigned int max_nw,
               std::vector<FarmWorker*>* workers,
-              SafeQueue<std::chrono::microseconds*>* latency_queue) : alpha(0.9),
+              SafeQueue<std::chrono::microseconds*>* latency_queue) : alpha(alpha),
                                                                       max_nw(max_nw),
                                                                       last_active_worker(-1),
                                                                       workers(workers),
-                                                                      latency_queue(latency_queue) {};
+                                                                      latency_queue(latency_queue)
+                                                                      {};
 
   void body(unsigned int nw_initial, std::chrono::microseconds service_time_goal){
+    unsigned int nw_new;
+    unsigned int EOS_counter = 0;
+    std::chrono::microseconds moving_avg_latency(0); // exponentially weighted moving average of latencies
+    std::chrono::microseconds actual_service_time;
+
     // notify nw_initial workers
     for(size_t i = 0; i < nw_initial; i++)
       this->activateWorker();
-
-    unsigned int window_size = 2;
-    unsigned int EOS_counter = 0;
-    unsigned int window_counter = 0;
-    std::chrono::microseconds window_latency(0); // sums up latencies over window
-    std::chrono::microseconds running_avg_latency; // average latency over window
-    // TODO also save std::chrono::microseconds actual_service_time
 
     while(EOS_counter < this->max_nw){
       std::chrono::microseconds* latency_worker = this->latency_queue->safePop();
@@ -46,26 +48,20 @@ public:
         continue; // go pop another execution time or EOS
       }
 
-      window_counter++;
-      window_latency += *latency_worker;
-      running_avg_latency = window_latency/window_counter;
+      auto tmp = alpha * *latency_worker + (1 - alpha) * moving_avg_latency;
+      moving_avg_latency = std::chrono::duration_cast<std::chrono::microseconds>(tmp);
+      actual_service_time = moving_avg_latency/(last_active_worker+1);
 
-      std::cout << "finestra/" << window_counter << " "
-                << "ric_latenza/" << latency_worker->count() << " "
-                << "running_avg_latency/" << running_avg_latency.count() << " "
-                << "actual_service_time/" << running_avg_latency.count()/(last_active_worker+1) << " ";
+      std::cout << "ric_latenza/" << latency_worker->count() << " "
+                << "expo_avg_latency/" << moving_avg_latency.count() << " "
+                << "actual_service_time/" << actual_service_time.count() << " ";
 
-      if(window_counter == window_size){
-        window_latency = std::chrono::microseconds(0);
-        window_counter = 0;
-      }
-
-      unsigned int tmp = running_avg_latency/service_time_goal;
-      unsigned int one = 1;
-      unsigned int nw_new = std::max(one, std::min(tmp, max_nw));
+      nw_new = computeNumberOfRequiredWorkers(moving_avg_latency, service_time_goal);
       updateParallelismDegree(nw_new);
-
       std::cout<< "nw_new/" << nw_new << " LAW/" << last_active_worker << std::endl;
+
+      // store statistics
+      service_time_history.push_back(actual_service_time);
     }
   }
 
@@ -106,6 +102,20 @@ public:
       for(int i = 0; i < abs(nw_diff); i++)
         disactivateWorker();
     }
+  }
+
+  unsigned int computeNumberOfRequiredWorkers(std::chrono::microseconds moving_avg_latency,
+                                      std::chrono::microseconds service_time_goal){
+    float a = (float) moving_avg_latency.count();
+    float b = (float) service_time_goal.count();
+    unsigned int nw_new = round(a/b);
+
+    nw_new = std::max((unsigned int) 1, std::min(nw_new, max_nw));
+    return nw_new;
+  }
+
+  std::vector<std::chrono::microseconds> getServiceTimeHistory(){
+    return service_time_history;
   }
 
   void printManager(){

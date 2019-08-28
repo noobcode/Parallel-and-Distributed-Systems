@@ -41,7 +41,7 @@ public:
                                        emitter(max_nw, workers_requests, task_queues),
                                        workers(new std::vector<FarmWorker*>(max_nw)),
                                        collector(max_nw, workers_result, output_stream),
-                                       manager(max_nw, workers, latency_queue)
+                                       manager(0.9, max_nw, workers, latency_queue)
   {
     // TODO unify for loops
     for(size_t i = 0; i < max_nw; i++)
@@ -116,10 +116,20 @@ public:
     manager.printManager();
   }
 
-  void printResults(){
-    std::cout << "results:" << std::endl;
-    output_stream->empty_and_print();
+  void getServiceTimeHistory(){
+    auto service_time_history = manager.getServiceTimeHistory();
+    for(int i = 0; i < service_time_history.size(); i++)
+      std::cout << service_time_history[i].count() << std::endl;
   }
+
+  void printResults(){
+    std::cout << "======= results:" << std::endl;
+    output_stream->empty_and_print();
+    std::cout << "=====================" << std::endl;
+  }
+
+
+
 };
 
 
