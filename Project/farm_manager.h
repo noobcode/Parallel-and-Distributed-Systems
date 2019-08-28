@@ -7,6 +7,7 @@
 
 class FarmManager{
 private:
+  float alpha;
   unsigned int max_nw;
   int last_active_worker; // index of the last active worker (-1 means all workers are disactive)
   std::vector<FarmWorker*>* workers;
@@ -14,9 +15,11 @@ private:
   std::thread* manager_thread;
 
 public:
-  FarmManager(unsigned int max_nw,
+  FarmManager(float alpha,
+              unsigned int max_nw,
               std::vector<FarmWorker*>* workers,
-              SafeQueue<std::chrono::microseconds*>* latency_queue) : max_nw(max_nw),
+              SafeQueue<std::chrono::microseconds*>* latency_queue) : alpha(0.9),
+                                                                      max_nw(max_nw),
                                                                       last_active_worker(-1),
                                                                       workers(workers),
                                                                       latency_queue(latency_queue) {};
@@ -49,7 +52,8 @@ public:
 
       std::cout << "finestra/" << window_counter << " "
                 << "ric_latenza/" << latency_worker->count() << " "
-                << "running_avg_latency/" << running_avg_latency.count() << " ";
+                << "running_avg_latency/" << running_avg_latency.count() << " "
+                << "actual_service_time/" << running_avg_latency.count()/(last_active_worker+1) << " ";
 
       if(window_counter == window_size){
         window_latency = std::chrono::microseconds(0);
