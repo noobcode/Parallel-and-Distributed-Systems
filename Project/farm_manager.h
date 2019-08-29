@@ -15,6 +15,9 @@ private:
   SafeQueue<std::chrono::microseconds*>* latency_queue;
   std::thread* manager_thread;
 
+  // store statistics
+  std::chrono::microseconds service_time_goal;
+  std::vector<unsigned int> active_workers_history;
   std::vector<std::chrono::microseconds> service_time_history;
 
 public:
@@ -32,7 +35,7 @@ public:
     unsigned int nw_new;
     unsigned int EOS_counter = 0;
     std::chrono::microseconds moving_avg_latency(0); // exponentially weighted moving average of latencies
-    std::chrono::microseconds actual_service_time;
+    std::chrono::microseconds actual_service_time; // TODO o semplicemente fare tempo consegna_i - tempo_consegna_i-1
 
     // notify nw_initial workers
     for(size_t i = 0; i < nw_initial; i++)
@@ -43,8 +46,7 @@ public:
 
       if(latency_worker->count() == -1){
         EOS_counter++;
-        activateAllWorkers(); // when you receive the first EOS from a worker it means that the emiter is done
-                              // TODO: activate all only once, may put an if inside the function or take care of it before
+        activateAllWorkers(); // activate all workers if not already active
         continue; // go pop another execution time or EOS
       }
 
@@ -56,16 +58,21 @@ public:
                 << "expo_avg_latency/" << moving_avg_latency.count() << " "
                 << "actual_service_time/" << actual_service_time.count() << " ";
 
-      nw_new = computeNumberOfRequiredWorkers(moving_avg_latency, service_time_goal);
-      updateParallelismDegree(nw_new);
-      std::cout<< "nw_new/" << nw_new << " LAW/" << last_active_worker << std::endl;
+      if(!EOS_counter){
+        // don't need to update parallelism degree once tasks are finished
+        nw_new = computeNumberOfRequiredWorkers(moving_avg_latency, service_time_goal);
+        updateParallelismDegree(nw_new);
+        std::cout<< "nw_new/" << nw_new << " LAW/" << last_active_worker << std::endl;
+      }
 
       // store statistics
       service_time_history.push_back(actual_service_time);
+      active_workers_history.push_back(last_active_worker+1);
     }
   }
 
   void run(unsigned int nw_initial, std::chrono::microseconds service_time_goal){
+    this->service_time_goal = service_time_goal;
     manager_thread = new std::thread(&FarmManager::body, this, nw_initial, service_time_goal);
   }
 
@@ -89,8 +96,9 @@ public:
 
   void activateAllWorkers(){
     // activate all workers so that they can read EOS and terminate
-    for(size_t i = last_active_worker+1; i < max_nw; i++)
+    for(size_t i = last_active_worker+1; i < max_nw; i++){
       activateWorker();
+    }
   }
 
   void updateParallelismDegree(unsigned int nw_new){
@@ -116,6 +124,14 @@ public:
 
   std::vector<std::chrono::microseconds> getServiceTimeHistory(){
     return service_time_history;
+  }
+
+  std::vector<unsigned int> getActiveWorkersHistory(){
+    return active_workers_history;
+  }
+
+  std::chrono::microseconds getServiceTimeGoal(){
+    return service_time_goal;
   }
 
   void printManager(){

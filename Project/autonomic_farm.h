@@ -10,6 +10,8 @@
 
 #include <iostream>
 #include <chrono>
+#include <iostream>
+#include <fstream>
 
 //template <class T> class AutonomicFarm
 class AutonomicFarm{
@@ -117,15 +119,46 @@ public:
   }
 
   void getServiceTimeHistory(){
+    std::cout << "=== actual service time history ===" << std::endl;
     auto service_time_history = manager.getServiceTimeHistory();
-    for(int i = 0; i < service_time_history.size(); i++)
+    for(size_t i = 0; i < service_time_history.size(); i++)
       std::cout << service_time_history[i].count() << std::endl;
+    std::cout << "===================================" << std::endl;
+  }
+
+  void getActiveWorkersHistory(){
+    std::cout << "=== active workers history ===" << std::endl;
+    auto active_workers_history = manager.getActiveWorkersHistory();
+    for(size_t i = 0; i < active_workers_history.size(); i++)
+      std::cout << active_workers_history[i] << std::endl;
+    std::cout << "==============================" << std::endl;
+  }
+
+  void service_time_history_to_csv(const std::string file_name){
+    auto service_time_history = manager.getServiceTimeHistory();
+    auto service_time_goal = manager.getServiceTimeGoal();
+    auto active_workers_history = manager.getActiveWorkersHistory();
+
+    std::ofstream myfile;
+    myfile.open("Statistics/" + file_name + ".csv");
+
+    myfile << "max_nw,"
+           << "active_workers_history,"
+           << "service_time_history,"
+           << "service_time_goal" << std::endl;
+    for(size_t i = 0; i < service_time_history.size(); i++){
+      myfile << max_nw << ","
+             << active_workers_history[i] << ","
+             << service_time_history[i].count() << ","
+             << service_time_goal.count() << std::endl;
+    }
+    myfile.close();
   }
 
   void printResults(){
-    std::cout << "======= results:" << std::endl;
+    std::cout << "======= results =======" << std::endl;
     output_stream->empty_and_print();
-    std::cout << "=====================" << std::endl;
+    std::cout << "=======================" << std::endl;
   }
 
 

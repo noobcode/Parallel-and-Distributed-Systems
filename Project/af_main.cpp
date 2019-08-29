@@ -25,6 +25,8 @@ int main(int argc, const char* argv[]){
   farm.run_and_wait(tasks, nw_initial, service_time_goal);
   farm.printResults();
   farm.getServiceTimeHistory();
+  farm.getActiveWorkersHistory();
+  farm.service_time_history_to_csv("service_time_trial");
 
 /*
   int accumulator = 0;
