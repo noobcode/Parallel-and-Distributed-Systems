@@ -32,3 +32,11 @@ plt.ylabel('Workers')
 plt.xlabel('Tasks')
 plt.title('Parallelism Degree')
 plt.show()
+
+# plot emitter, workers and collector elapsed time history
+results_df.plot(y=['emitter_elapsed_time_history','workers_elapsed_time_history','collector_elapsed_time_history'],
+                style=['-', '--', ':'])
+plt.ylabel('Elapsed Time')
+plt.xlabel('Tasks')
+plt.title('Elapsed Time History')
+plt.show()
