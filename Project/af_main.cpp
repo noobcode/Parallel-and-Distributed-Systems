@@ -19,8 +19,8 @@ int main(int argc, const char* argv[]){
   std::chrono::microseconds service_time_goal(100);
   unsigned int nw_initial = 2;
 
-  AutonomicFarm farm(max_nw, my_f);
-  //farm.printFarm();
+  AutonomicFarm<int> farm(max_nw, my_f);
+  farm.printFarm();
 
   farm.run_and_wait(tasks, nw_initial, service_time_goal);
   farm.stampCompletionTime();
@@ -28,17 +28,6 @@ int main(int argc, const char* argv[]){
   //farm.getServiceTimeHistory();
   //farm.getActiveWorkersHistory();
   farm.service_time_history_to_csv("service_time_trial");
-
-/*
-  int accumulator = 0;
-  float alpha = 0.9;
-  std::vector<int> ts = {100, 100, 100, 100, 200, 200, 200, 200, 400, 400, 200, 200, 200};
-  std::cout << "new_value - running_avg" << std::endl;
-  for(int i = 0; i < ts.size(); i++){
-    accumulator = (alpha * ts[i]) + (1.0 - alpha) * accumulator;
-    std::cout << ts[i] << " " << accumulator << std::endl;
-  }
-*/
 
   return 0;
 }

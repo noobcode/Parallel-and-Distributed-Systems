@@ -12,14 +12,14 @@
 
 enum WorkerStatus {INACTIVE, ACTIVE};
 
-class FarmWorker{
+template <class T> class FarmWorker{
 private:
   unsigned int worker_id;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
-  SafeQueue<Task*>* task_queue; // unilateral channels from Emitter to each Worker
-  SafeQueue<Task*>* output_stream; // where all workers put the results
+  SafeQueue<Task<T>*>* task_queue; // unilateral channels from Emitter to each Worker
+  SafeQueue<Task<T>*>* output_stream; // where all workers put the results
   SafeQueue<std::chrono::microseconds*>* latency_queue;
-  std::function<int(int)> f;
+  std::function<T(T)> f;
   WorkerStatus status_worker;
 
   std::thread* worker_thread;
@@ -32,10 +32,10 @@ public:
   // constructor
   FarmWorker(unsigned int worker_id,
              SafeQueue<int>* workers_requests,
-             SafeQueue<Task*>* task_queue,
-             SafeQueue<Task*>* output_stream,
+             SafeQueue<Task<T>*>* task_queue,
+             SafeQueue<Task<T>*>* output_stream,
              SafeQueue<std::chrono::microseconds*>* latency_queue,
-             std::function<int(int)> f,
+             std::function<T(T)> f,
              WorkerStatus status_worker): worker_id(worker_id),
                                           workers_requests(workers_requests),
                                           task_queue(task_queue),
@@ -61,13 +61,13 @@ public:
         // worker tells emitter that is ready
         workers_requests->safePush(worker_id);
         // worker waits for task
-        Task* task = task_queue->safePop();
+        Task<T>* task = task_queue->safePop();
         if(task->isEOS()) break;
 
         result = f(task->getData());
 
         // send result
-        output_stream->safePush(new Task(result));
+        output_stream->safePush(new Task<T>(result));
       }
 
       latency_queue->safePush(new std::chrono::microseconds(elapsed_time));
@@ -85,7 +85,7 @@ public:
 
   void sendEOS(){
     latency_queue->safePush(new std::chrono::microseconds(-1));
-    output_stream->safePush(Task::EOS());
+    output_stream->safePush(Task<T>::EOS());
   }
 
   void activate(){
@@ -103,7 +103,7 @@ public:
     worker_id = id;
   }
 
-  void setTaskQueue(SafeQueue<Task*>* queue){
+  void setTaskQueue(SafeQueue<Task<T>*>* queue){
     task_queue = queue;
   }
 

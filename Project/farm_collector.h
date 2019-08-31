@@ -7,10 +7,10 @@
 #include <chrono>
 #include "./utimer.h"
 
-class FarmCollector{
+template <class T> class FarmCollector{
 private:
   unsigned int max_nw;
-  SafeQueue<Task*>* input_stream;
+  SafeQueue<Task<T>*>* input_stream;
   SafeQueue<int>* output_stream;
   std::thread* collector_thread;
 
@@ -19,7 +19,7 @@ private:
 
 public:
   FarmCollector(unsigned int max_nw,
-                SafeQueue<Task*>* input_stream,
+                SafeQueue<Task<T>*>* input_stream,
                 SafeQueue<int>* output_stream) : max_nw(max_nw),
                                                  input_stream(input_stream),
                                                  output_stream(output_stream) {};
@@ -29,7 +29,7 @@ public:
     while(count_EOS < max_nw){
       {
         utimer timer(&elapsed_time);
-        Task* t = input_stream->safePop();
+        Task<T>* t = input_stream->safePop();
         if(t->isEOS()){
           count_EOS++;
           continue;
