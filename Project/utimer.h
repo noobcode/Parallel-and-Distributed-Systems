@@ -1,3 +1,6 @@
+#ifndef __UTIMER_H__
+#define __UTIMER_H__
+
 #include <iostream>
 #include <string>
 #include <chrono>
@@ -10,14 +13,12 @@ private:
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point stop;
   std::chrono::microseconds* time_elapsed;
-  std::string message;
 
   using usecs = std::chrono::microseconds;
   using msecs = std::chrono::milliseconds;
 
 public:
-  utimer(const std::string m, usecs* time_elapsed) : message(m)
-                                                     time_elapsed(time_elapsed)
+  utimer(usecs* time_elapsed) : time_elapsed(time_elapsed)
   {
     start = std::chrono::system_clock::now();
   }
@@ -26,8 +27,7 @@ public:
     stop = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
     *time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(elapsed);
-
-    std::cout << message << " computed in " << time_elapsed->count() << " usec " << std::endl;
-
   }
 };
+
+#endif // __UTIMER_H__

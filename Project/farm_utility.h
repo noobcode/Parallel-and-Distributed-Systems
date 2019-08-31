@@ -7,7 +7,7 @@ class Task{
 private:
   int data;
   size_t task_id; // TODO: if you want to use an ordered farm
-  bool is_EOS;    // TODO: eliminare e semplicemente restituire un puntatore nullo
+  bool is_EOS;    // TODO: eliminare e semplicemente restituire un puntatore nullo?
 
 public:
   Task(int data) : data(data), task_id(-1), is_EOS(false) {};

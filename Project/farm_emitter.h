@@ -6,6 +6,8 @@
 #include <thread>
 #include "./safe_queue.h"
 #include "./farm_utility.h"
+#include <chrono>
+#include "utimer.h"
 
 //template <class T>
 class FarmEmitter{
@@ -14,6 +16,9 @@ private:
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   std::vector<SafeQueue<Task*>*>* task_queues; // unilateral channels from Emitter to each Worker
   std::thread* emitter_thread;
+
+  std::chrono::microseconds elapsed_time;
+  std::vector<std::chrono::microseconds> elapsed_time_history;
 
 public:
   // constructors
@@ -25,18 +30,22 @@ public:
 
   // methods
   void emitTasks(std::vector<int> data_stream){ // TODO template
-    for(size_t i=0; i < data_stream.size(); i++){
-      // receive data from input stream
-      Task* task = new Task(data_stream[i]);
-      // receive disponibility from a worker
-      int worker_id = this->workers_requests->safePop();
-      this->task_queues->at(worker_id)->safePush(task); // TODO task_queues is a vector of one-slot safe_queue
+    for(size_t i = 0; i < data_stream.size(); i++){
+      {
+        utimer timer(&elapsed_time);
+        // receive data from input stream
+        Task* task = new Task(data_stream[i]);
+        // receive disponibility from a worker
+        int worker_id = workers_requests->safePop();
+        task_queues->at(worker_id)->safePush(task);
+      }
+      elapsed_time_history.push_back(elapsed_time);
     }
   }
 
   void sendEOS(){
-    for(size_t i = 0; i < this->max_nw; i++)
-      this->task_queues->at(i)->safePush(Task::EOS());
+    for(size_t i = 0; i < max_nw; i++)
+      task_queues->at(i)->safePush(Task::EOS());
   }
 
   void body(std::vector<int> data){
@@ -50,6 +59,10 @@ public:
 
   void join(){
     emitter_thread->join();
+  }
+
+  std::vector<std::chrono::microseconds> getElapsedTimeHistory(){
+    return elapsed_time_history;
   }
 
   void printEmitter(){

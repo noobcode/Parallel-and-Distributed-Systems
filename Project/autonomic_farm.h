@@ -7,6 +7,7 @@
 #include "./farm_manager.h"
 #include "./safe_queue.h"
 #include "./farm_utility.h"
+#include "./utimer.h"
 
 #include <iostream>
 #include <chrono>
@@ -30,6 +31,7 @@ private:
   FarmManager manager;
 
   // TODO save statistics for later access
+  std::chrono::microseconds completion_time;
 
 public:
   // contructors
@@ -80,9 +82,13 @@ public:
     manager.join();
   }
 
-  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal){
-    run(tasks, nw_initial, service_time_goal);
-    wait();
+  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal)
+  {
+    {
+      utimer timer(&completion_time);
+      run(tasks, nw_initial, service_time_goal);
+      wait();
+    }
   }
 
   void printFarm(){
@@ -139,20 +145,37 @@ public:
     auto service_time_goal = manager.getServiceTimeGoal();
     auto active_workers_history = manager.getActiveWorkersHistory();
 
+    auto emitter_elapsed_time_history = emitter.getElapsedTimeHistory();
+    auto workers_elapsed_time_history = manager.getWorkersElapsedTimeHistory();
+    auto collector_elapsed_time_history = collector.getElapsedTimeHistory();
+
     std::ofstream myfile;
     myfile.open("Statistics/" + file_name + ".csv");
 
     myfile << "max_nw,"
            << "active_workers_history,"
            << "service_time_history,"
-           << "service_time_goal" << std::endl;
+           << "service_time_goal,"
+           << "emitter_elapsed_time_history,"
+           << "workers_elapsed_time_history,"
+           << "collector_elapsed_time_history"
+           << std::endl;
+
     for(size_t i = 0; i < service_time_history.size(); i++){
       myfile << max_nw << ","
              << active_workers_history[i] << ","
              << service_time_history[i].count() << ","
-             << service_time_goal.count() << std::endl;
+             << service_time_goal.count() << ","
+             << emitter_elapsed_time_history[i].count() << ","
+             << workers_elapsed_time_history[i].count() << ","
+             << collector_elapsed_time_history[i].count()
+             << std::endl;
     }
     myfile.close();
+  }
+
+  void stampCompletionTime(){
+    std::cout << "completion time: " << completion_time.count() << " usec" << std::endl;
   }
 
   void printResults(){

@@ -19,6 +19,7 @@ private:
   std::chrono::microseconds service_time_goal;
   std::vector<unsigned int> active_workers_history;
   std::vector<std::chrono::microseconds> service_time_history;
+  std::vector<std::chrono::microseconds> workers_elapsed_time_history;
 
 public:
   FarmManager(float alpha,
@@ -31,7 +32,7 @@ public:
                                                                       latency_queue(latency_queue)
                                                                       {};
 
-  void body(unsigned int nw_initial, std::chrono::microseconds service_time_goal){
+  void body(unsigned int nw_initial){
     unsigned int nw_new;
     unsigned int EOS_counter = 0;
     std::chrono::microseconds moving_avg_latency(0); // exponentially weighted moving average of latencies
@@ -39,10 +40,10 @@ public:
 
     // notify nw_initial workers
     for(size_t i = 0; i < nw_initial; i++)
-      this->activateWorker();
+      activateWorker();
 
-    while(EOS_counter < this->max_nw){
-      std::chrono::microseconds* latency_worker = this->latency_queue->safePop();
+    while(EOS_counter < max_nw){
+      std::chrono::microseconds* latency_worker = latency_queue->safePop();
 
       if(latency_worker->count() == -1){
         EOS_counter++;
@@ -68,12 +69,13 @@ public:
       // store statistics
       service_time_history.push_back(actual_service_time);
       active_workers_history.push_back(last_active_worker+1);
+      workers_elapsed_time_history.push_back(*latency_worker);
     }
   }
 
   void run(unsigned int nw_initial, std::chrono::microseconds service_time_goal){
     this->service_time_goal = service_time_goal;
-    manager_thread = new std::thread(&FarmManager::body, this, nw_initial, service_time_goal);
+    manager_thread = new std::thread(&FarmManager::body, this, nw_initial);
   }
 
   void join(){
@@ -132,6 +134,10 @@ public:
 
   std::chrono::microseconds getServiceTimeGoal(){
     return service_time_goal;
+  }
+
+  std::vector<std::chrono::microseconds> getWorkersElapsedTimeHistory(){
+    return workers_elapsed_time_history;
   }
 
   void printManager(){

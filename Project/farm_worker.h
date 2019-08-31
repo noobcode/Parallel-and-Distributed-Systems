@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include "./safe_queue.h"
 #include "./farm_utility.h"
+#include "./utimer.h"
 
 enum WorkerStatus {INACTIVE, ACTIVE};
 
@@ -24,6 +25,8 @@ private:
   std::thread* worker_thread;
   std::mutex* status_mutex;
   std::condition_variable* status_condition;
+
+  std::chrono::microseconds elapsed_time;
 
 public:
   // constructor
@@ -46,28 +49,30 @@ public:
   };
 
   void body(){
-    std::chrono::system_clock::time_point tic, toc;
+    int result;
     while(true){
       {
         std::unique_lock<std::mutex> lock(*status_mutex);
         status_condition->wait(lock, [=]{return status_worker == ACTIVE;});   // if holds, it goes through
       }
-      // worker tells emitter that is ready
-      workers_requests->safePush(worker_id);
-      // worker waits for task
-      Task* task = task_queue->safePop();
-      if(task->isEOS()) break;
 
-      tic = std::chrono::system_clock::now();
-      auto result = f(task->getData());
-      toc = std::chrono::system_clock::now();
-      auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(toc - tic);
+      {
+        utimer timer(&elapsed_time);
+        // worker tells emitter that is ready
+        workers_requests->safePush(worker_id);
+        // worker waits for task
+        Task* task = task_queue->safePop();
+        if(task->isEOS()) break;
 
-      output_stream->safePush(new Task(result));
+        result = f(task->getData());
+
+        // send result
+        output_stream->safePush(new Task(result));
+      }
+
       latency_queue->safePush(new std::chrono::microseconds(elapsed_time));
     }
-    latency_queue->safePush(new std::chrono::microseconds(-1));
-    output_stream->safePush(Task::EOS());
+    sendEOS();
   }
 
   void run(){
@@ -76,6 +81,11 @@ public:
 
   void join(){
     worker_thread->join();
+  }
+
+  void sendEOS(){
+    latency_queue->safePush(new std::chrono::microseconds(-1));
+    output_stream->safePush(Task::EOS());
   }
 
   void activate(){

@@ -4,6 +4,8 @@
 #include "./farm_utility.h"
 #include "./safe_queue.h"
 #include <thread>
+#include <chrono>
+#include "./utimer.h"
 
 class FarmCollector{
 private:
@@ -12,6 +14,9 @@ private:
   SafeQueue<int>* output_stream;
   std::thread* collector_thread;
 
+  std::chrono::microseconds elapsed_time;
+  std::vector<std::chrono::microseconds> elapsed_time_history;
+
 public:
   FarmCollector(unsigned int max_nw,
                 SafeQueue<Task*>* input_stream,
@@ -19,28 +24,33 @@ public:
                                                  input_stream(input_stream),
                                                  output_stream(output_stream) {};
 
-  static void body(unsigned int max_nw,
-                SafeQueue<Task*>* input_stream,
-                SafeQueue<int>* output_stream){
-
+  void body(){
     size_t count_EOS = 0;
     while(count_EOS < max_nw){
-      Task* t = input_stream->safePop();
-      if(t->isEOS()){
-        count_EOS++;
+      {
+        utimer timer(&elapsed_time);
+        Task* t = input_stream->safePop();
+        if(t->isEOS()){
+          count_EOS++;
+          continue;
+        }
+        else
+          output_stream->safePush(t->getData());
       }
-      else{
-        output_stream->safePush(t->getData());
-      }
+      elapsed_time_history.push_back(elapsed_time);
     }
   }
 
   void run(){
-    collector_thread = new std::thread(body, max_nw, input_stream, output_stream);
+    collector_thread = new std::thread(&FarmCollector::body, this);
   }
 
   void join(){
     collector_thread->join();
+  }
+
+  std::vector<std::chrono::microseconds> getElapsedTimeHistory(){
+    return elapsed_time_history;
   }
 
   void printCollector(){
