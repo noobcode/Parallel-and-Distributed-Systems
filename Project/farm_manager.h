@@ -6,12 +6,12 @@
 #include <cmath>
 #include "./farm_worker.h"
 
-template <class T> class FarmManager{
+template <class Tin, class Tout> class FarmManager{
 private:
   float alpha;
   unsigned int max_nw;
   int last_active_worker; // index of the last active worker (-1 means all workers are disactive)
-  std::vector<FarmWorker<T>*>* workers;
+  std::vector<FarmWorker<Tin, Tout>*>* workers;
   SafeQueue<std::chrono::microseconds*>* latency_queue;
   std::thread* manager_thread;
 
@@ -24,7 +24,7 @@ private:
 public:
   FarmManager(float alpha,
               unsigned int max_nw,
-              std::vector<FarmWorker<T>*>* workers,
+              std::vector<FarmWorker<Tin, Tout>*>* workers,
               SafeQueue<std::chrono::microseconds*>* latency_queue) : alpha(alpha),
                                                                       max_nw(max_nw),
                                                                       last_active_worker(-1),

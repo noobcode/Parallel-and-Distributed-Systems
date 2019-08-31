@@ -28,7 +28,7 @@ public:
                                                            task_queues(task_queues) {};
 
   // methods
-  void emitTasks(std::vector<int> data_stream){ // TODO template
+  void emitTasks(std::vector<T> data_stream){ // TODO template
     for(size_t i = 0; i < data_stream.size(); i++){
       {
         utimer timer(&elapsed_time);

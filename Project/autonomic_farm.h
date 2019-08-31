@@ -14,21 +14,21 @@
 #include <iostream>
 #include <fstream>
 
-template <class T> class AutonomicFarm{
+template <class Tin, class Tout> class AutonomicFarm{
 //class AutonomicFarm{
 private:
   unsigned int max_nw; // maximum number of workers
 
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
-  std::vector<SafeQueue<Task<T>*>*>* task_queues; // unilateral channels from Emitter to each Worker
-  SafeQueue<Task<T>*>* workers_result; // queue where workers push results
-  SafeQueue<T>* output_stream;    // queue where collector pushs results
+  std::vector<SafeQueue<Task<Tin>*>*>* task_queues; // unilateral channels from Emitter to each Worker
+  SafeQueue<Task<Tout>*>* workers_result; // queue where workers push results
+  SafeQueue<Tout>* output_stream;    // queue where collector pushes results
   SafeQueue<std::chrono::microseconds*>* latency_queue;
 
-  FarmEmitter<T> emitter;
-  std::vector<FarmWorker<T>*>* workers;
-  FarmCollector<T> collector;
-  FarmManager<T> manager;
+  FarmEmitter<Tin> emitter;
+  std::vector<FarmWorker<Tin, Tout>*>* workers;
+  FarmCollector<Tout> collector;
+  FarmManager<Tin, Tout> manager;
 
   // TODO save statistics for later access
   std::chrono::microseconds completion_time;
@@ -36,28 +36,28 @@ private:
 public:
   // contructors
   AutonomicFarm(unsigned int max_nw,
-                std::function<T(T)> f) : max_nw(max_nw),
+                std::function<Tout(Tin)> f) : max_nw(max_nw),
                                        workers_requests(new SafeQueue<int>(max_nw)),
-                                       task_queues(new std::vector<SafeQueue<Task<T>*>*>(max_nw)),
-                                       workers_result(new SafeQueue<Task<T>*>),
-                                       output_stream(new SafeQueue<T>),
+                                       task_queues(new std::vector<SafeQueue<Task<Tin>*>*>(max_nw)),
+                                       workers_result(new SafeQueue<Task<Tout>*>),
+                                       output_stream(new SafeQueue<Tout>),
                                        latency_queue(new SafeQueue<std::chrono::microseconds*>),
                                        emitter(max_nw, workers_requests, task_queues),
-                                       workers(new std::vector<FarmWorker<T>*>(max_nw)),
+                                       workers(new std::vector<FarmWorker<Tin, Tout>*>(max_nw)),
                                        collector(max_nw, workers_result, output_stream),
                                        manager(0.9, max_nw, workers, latency_queue)
   {
     // allocate task queues
     for(size_t i = 0; i < max_nw; i++)
-      task_queues->at(i) = new SafeQueue<Task<T>*>(1);
+      task_queues->at(i) = new SafeQueue<Task<Tin>*>(1);
 
     // initialize workers
     for(size_t i = 0; i < max_nw; i++)
-      workers->at(i) = new FarmWorker<T>(i, workers_requests, task_queues->at(i), workers_result, latency_queue, f, INACTIVE);
+      workers->at(i) = new FarmWorker<Tin, Tout>(i, workers_requests, task_queues->at(i), workers_result, latency_queue, f, INACTIVE);
   };
 
   // methods
-  void run(std::vector<T> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal){
+  void run(std::vector<Tin> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal){
     emitter.run(tasks);
     for(size_t i = 0; i < max_nw; i++)
       workers->at(i)->run();
@@ -75,7 +75,7 @@ public:
     manager.join();
   }
 
-  void run_and_wait(std::vector<int> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal)
+  void run_and_wait(std::vector<Tin> tasks, unsigned int nw_initial, std::chrono::microseconds service_time_goal)
   {
     {
       utimer timer(&completion_time);
