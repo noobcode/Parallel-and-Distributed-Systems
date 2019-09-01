@@ -1,5 +1,5 @@
 OBJECTS = af_main.cpp safe_queue.h autonomic_farm.h farm_emitter.h farm_worker.h farm_collector.h farm_manager.h farm_utility.h
-CFLAGS = -Wall -std=c++17 -pthread
+CFLAGS = -g -Wall -std=c++17 -pthread
 CC = g++
 PROGRAM_NAME = af_main
 

@@ -7,11 +7,11 @@
 #include <chrono>
 #include "./utimer.h"
 
-template <class T> class FarmCollector{
+template <typename T> class FarmCollector{
 private:
   unsigned int max_nw;
   SafeQueue<Task<T>*>* input_stream;
-  SafeQueue<int>* output_stream;
+  SafeQueue<T>* output_stream;
   std::thread* collector_thread;
 
   std::chrono::microseconds elapsed_time;
@@ -20,7 +20,7 @@ private:
 public:
   FarmCollector(unsigned int max_nw,
                 SafeQueue<Task<T>*>* input_stream,
-                SafeQueue<int>* output_stream) : max_nw(max_nw),
+                SafeQueue<T>* output_stream) : max_nw(max_nw),
                                                  input_stream(input_stream),
                                                  output_stream(output_stream) {};
 

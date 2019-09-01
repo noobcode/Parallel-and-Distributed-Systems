@@ -12,7 +12,7 @@
 
 enum WorkerStatus {INACTIVE, ACTIVE};
 
-template <class Tin, class Tout> class FarmWorker{
+template <typename Tin, typename Tout> class FarmWorker{
 private:
   unsigned int worker_id;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
@@ -49,7 +49,7 @@ public:
   };
 
   void body(){
-    int result;
+    Tout result;
     while(true){
       {
         std::unique_lock<std::mutex> lock(*status_mutex);

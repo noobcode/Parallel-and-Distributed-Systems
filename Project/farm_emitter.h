@@ -9,7 +9,7 @@
 #include <chrono>
 #include "utimer.h"
 
-template <class T> class FarmEmitter{
+template <typename T> class FarmEmitter{
 private:
   unsigned int max_nw;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter

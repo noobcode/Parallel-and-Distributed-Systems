@@ -14,7 +14,7 @@
 #include <iostream>
 #include <fstream>
 
-template <class Tin, class Tout> class AutonomicFarm{
+template <typename Tin, typename Tout> class AutonomicFarm{
 //class AutonomicFarm{
 private:
   unsigned int max_nw; // maximum number of workers

@@ -3,7 +3,7 @@
 
 #include<cstddef>
 
-template <class T> class Task{
+template <typename T> class Task{
 private:
   T data;
   size_t task_id; // TODO: if you want to use an ordered farm

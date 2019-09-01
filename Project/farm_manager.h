@@ -6,7 +6,7 @@
 #include <cmath>
 #include "./farm_worker.h"
 
-template <class Tin, class Tout> class FarmManager{
+template <typename Tin, typename Tout> class FarmManager{
 private:
   float alpha;
   unsigned int max_nw;
