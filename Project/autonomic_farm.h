@@ -36,16 +36,18 @@ private:
 public:
   // contructors
   AutonomicFarm(unsigned int max_nw,
-                std::function<Tout(Tin)> f) : max_nw(max_nw),
-                                       workers_requests(new SafeQueue<int>(max_nw)),
-                                       task_queues(new std::vector<SafeQueue<Task<Tin>*>*>(max_nw)),
-                                       workers_result(new SafeQueue<Task<Tout>*>),
-                                       output_stream(new SafeQueue<Tout>),
-                                       latency_queue(new SafeQueue<std::chrono::microseconds*>),
-                                       emitter(max_nw, workers_requests, task_queues),
-                                       workers(new std::vector<FarmWorker<Tin, Tout>*>(max_nw)),
-                                       collector(max_nw, workers_result, output_stream),
-                                       manager(0.9, max_nw, workers, latency_queue)
+                std::function<Tout(Tin)> f,
+                float alpha,
+                bool concurrency_throttling) : max_nw(max_nw),
+                               workers_requests(new SafeQueue<int>(max_nw)),
+                               task_queues(new std::vector<SafeQueue<Task<Tin>*>*>(max_nw)),
+                               workers_result(new SafeQueue<Task<Tout>*>),
+                               output_stream(new SafeQueue<Tout>),
+                               latency_queue(new SafeQueue<std::chrono::microseconds*>),
+                               emitter(max_nw, workers_requests, task_queues),
+                               workers(new std::vector<FarmWorker<Tin, Tout>*>(max_nw)),
+                               collector(max_nw, workers_result, output_stream),
+                               manager(alpha, max_nw, concurrency_throttling, workers, latency_queue)
   {
     // allocate task queues
     for(size_t i = 0; i < max_nw; i++)
@@ -117,12 +119,9 @@ public:
     manager.printManager();
   }
 
-  void getServiceTimeHistory(){
-    std::cout << "=== actual service time history ===" << std::endl;
+  std::vector<std::chrono::microseconds> getServiceTimeHistory(){
     auto service_time_history = manager.getServiceTimeHistory();
-    for(size_t i = 0; i < service_time_history.size(); i++)
-      std::cout << service_time_history[i].count() << std::endl;
-    std::cout << "===================================" << std::endl;
+    return service_time_history;
   }
 
   void getActiveWorkersHistory(){
@@ -167,8 +166,8 @@ public:
     myfile.close();
   }
 
-  void stampCompletionTime(){
-    std::cout << "completion time: " << completion_time.count() << " usec" << std::endl;
+  std::chrono::microseconds getCompletionTime(){
+    return completion_time;
   }
 
   void printResults(){
