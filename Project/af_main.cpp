@@ -94,20 +94,22 @@ int main(int argc, const char* argv[]){
   myfile_2.close();
 
   // experiment for average service time error vs alpha
-  std::vector<float> alpha_values = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0};
+  std::vector<float> alpha_values = {0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35,
+                                     0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7,
+                                     0.75, 0.8, 0.85, 0.9, 0.95, 1.0};
   std::ofstream myfile_3;
   myfile_3.open("Statistics/service_time_history_vs_alpha.csv");
-  myfile_3 << "alpha,service_time_goal,service_time_history" << std::endl;
+  //myfile_3 << "#alpha,service_time_goal,service_time_history" << std::endl;
   for(size_t i=0; i < alpha_values.size(); i++){
     AutonomicFarm<std::vector<int>, float> farm(nw_max, my_f, alpha_values[i], true);
     farm.run_and_wait(data, nw_init, service_time_goal);
 
     auto service_time_history = farm.getServiceTimeHistory();
     myfile_3 << alpha_values[i] << ","
-             << service_time_goal.count() << ",[";
+             << service_time_goal.count();
     for(size_t j=0; j< service_time_history.size(); j++)
-      myfile_3 << service_time_history[j].count() << ",";
-    myfile_3 << "]"  << std::endl;
+      myfile_3 << "," << service_time_history[j].count();
+    myfile_3 << std::endl;
   }
   myfile_3.close();
 
