@@ -58,20 +58,15 @@ public:
       moving_avg_latency = std::chrono::duration_cast<std::chrono::microseconds>(tmp);
       actual_service_time = moving_avg_latency/(last_active_worker+1);
 
-      //std::cout << "ric_latenza/" << latency_worker->count() << " "
-      //          << "expo_avg_latency/" << moving_avg_latency.count() << " "
-      //          << "actual_service_time/" << actual_service_time.count() << " ";
-
       if(!EOS_counter && concurrency_throttling){
         // don't need to update parallelism degree once tasks are finished
         nw_new = computeNumberOfRequiredWorkers(moving_avg_latency, service_time_goal);
         updateParallelismDegree(nw_new);
-        //std::cout<< "nw_new/" << nw_new << " LAW/" << last_active_worker << std::endl;
       }
 
       // store statistics
       service_time_history.push_back(actual_service_time);
-      active_workers_history.push_back(last_active_worker+1);
+      active_workers_history.push_back((last_active_worker+1));
       workers_elapsed_time_history.push_back(*latency_worker);
     }
   }

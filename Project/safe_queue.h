@@ -1,6 +1,3 @@
-//#pragma once
-
-//The following is the #include header guard.
 #ifndef __SAFE_QUEUE_H__
 #define __SAFE_QUEUE_H__
 
@@ -22,7 +19,6 @@ template <class T> class SafeQueue{
     public:
         SafeQueue(size_t my_size) : max_size(my_size) {};
         SafeQueue() : max_size(std::numeric_limits<unsigned int>::max()) {};
-        //SafeQueue() : max_size(1) {};
 
         void safePush(T item){  //max size
             std::unique_lock<std::mutex> lock(d_mutex);

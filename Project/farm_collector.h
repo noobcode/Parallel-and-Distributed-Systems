@@ -14,7 +14,6 @@ private:
   SafeQueue<T>* output_stream;
   std::thread* collector_thread;
 
-  std::chrono::microseconds elapsed_time;
   std::vector<std::chrono::microseconds> elapsed_time_history;
 
 public:
@@ -25,18 +24,25 @@ public:
                                                  output_stream(output_stream) {};
 
   void body(){
+    std::chrono::system_clock::time_point tic, toc;
+    std::chrono::microseconds elapsed_time;
     size_t count_EOS = 0;
     while(count_EOS < max_nw){
-      {
-        utimer timer(&elapsed_time);
-        Task<T>* t = input_stream->safePop();
-        if(t->isEOS()){
-          count_EOS++;
-          continue;
-        }
-        else
-          output_stream->safePush(t->getData());
+
+      tic = std::chrono::system_clock::now();
+
+      Task<T>* t = input_stream->safePop();
+      if(t->isEOS()){
+        count_EOS++;
+        continue;
       }
+      else
+        output_stream->safePush(t->getData());
+
+      toc = std::chrono::system_clock::now();
+      std::chrono::duration<double> elapsed = toc - tic;
+      elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(elapsed);
+
       elapsed_time_history.push_back(elapsed_time);
     }
   }

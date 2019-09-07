@@ -16,7 +16,6 @@ private:
   std::vector<SafeQueue<Task<T>*>*>* task_queues; // unilateral channels from Emitter to each Worker
   std::thread* emitter_thread;
 
-  std::chrono::microseconds elapsed_time;
   std::vector<std::chrono::microseconds> elapsed_time_history;
 
 public:
@@ -28,17 +27,28 @@ public:
                                                            task_queues(task_queues) {};
 
   // methods
-  void emitTasks(std::vector<T> data_stream){ // TODO template
-    for(size_t i = 0; i < data_stream.size(); i++){
-      {
-        utimer timer(&elapsed_time);
-        // receive data from input stream
-        Task<T>* task = new Task<T>(data_stream[i]);
-        // receive disponibility from a worker
-        int worker_id = workers_requests->safePop();
-        task_queues->at(worker_id)->safePush(task);
-      }
-      elapsed_time_history.push_back(elapsed_time);
+  void emitTasks(std::vector<T> data_stream){
+    std::chrono::system_clock::time_point tic, toc;
+    std::chrono::microseconds elapsed_time;
+
+    size_t n = data_stream.size();
+    elapsed_time_history.resize(n);
+
+    for(size_t i = 0; i < n; i++){
+      tic = std::chrono::system_clock::now();
+
+      // receive data from input stream
+      Task<T>* task = new Task<T>(data_stream[i]);
+      // receive disponibility from a worker
+      int worker_id = workers_requests->safePop();
+      // send task to worker
+      task_queues->at(worker_id)->safePush(task);
+
+      toc = std::chrono::system_clock::now();
+      std::chrono::duration<double> elapsed = toc - tic;
+      elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(elapsed);
+      // update internal statistics
+      elapsed_time_history.at(i) = elapsed_time;
     }
   }
 
