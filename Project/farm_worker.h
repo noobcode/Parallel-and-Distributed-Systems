@@ -15,10 +15,11 @@ enum WorkerStatus {INACTIVE, ACTIVE};
 template <typename Tin, typename Tout> class FarmWorker{
 private:
   unsigned int worker_id;
+  bool concurrency_throttling;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   SafeQueue<Task<Tin>*>* task_queue; // unilateral channels from Emitter to each Worker
   SafeQueue<Task<Tout>*>* output_stream; // where all workers put the results
-  SafeQueue<std::chrono::microseconds*>* latency_queue;
+  SafeQueue<std::chrono::microseconds*>* latency_queue; // emitter to manager
   std::function<Tout(Tin)> f;
   WorkerStatus status_worker;
 
@@ -29,12 +30,14 @@ private:
 public:
   // constructor
   FarmWorker(unsigned int worker_id,
+             bool concurrency_throttling,
              SafeQueue<int>* workers_requests,
              SafeQueue<Task<Tin>*>* task_queue,
              SafeQueue<Task<Tout>*>* output_stream,
              SafeQueue<std::chrono::microseconds*>* latency_queue,
              std::function<Tout(Tin)> f,
              WorkerStatus status_worker): worker_id(worker_id),
+                                          concurrency_throttling(concurrency_throttling),
                                           workers_requests(workers_requests),
                                           task_queue(task_queue),
                                           output_stream(output_stream),
@@ -72,7 +75,9 @@ public:
       std::chrono::duration<double> elapsed = toc - tic;
       elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(elapsed);
 
-      latency_queue->safePush(new std::chrono::microseconds(elapsed_time));
+
+      if(concurrency_throttling)
+        latency_queue->safePush(new std::chrono::microseconds(elapsed_time));
     }
     sendEOS();
   }
@@ -86,7 +91,8 @@ public:
   }
 
   void sendEOS(){
-    latency_queue->safePush(new std::chrono::microseconds(-1));
+    if(concurrency_throttling)
+      latency_queue->safePush(new std::chrono::microseconds(-1));
     output_stream->safePush(Task<Tout>::EOS());
   }
 

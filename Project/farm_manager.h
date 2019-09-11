@@ -37,13 +37,16 @@ public:
 
   void body(unsigned int nw_initial){
     unsigned int nw_new;
-    unsigned int EOS_counter = 0;
+    unsigned int EOS_counter = 0; // TODO terminate farm manager immediately when concurrency_throttling is false
     std::chrono::microseconds moving_avg_latency(0); // exponentially weighted moving average of latencies
     std::chrono::microseconds actual_service_time; // TODO o semplicemente fare tempo consegna_i - tempo_consegna_i-1
 
     // notify nw_initial workers
     for(size_t i = 0; i < nw_initial; i++)
       activateWorker();
+
+    if(!concurrency_throttling)
+      return;
 
     while(EOS_counter < max_nw){
       std::chrono::microseconds* latency_worker = latency_queue->safePop();
@@ -54,11 +57,16 @@ public:
         continue; // go pop another execution time or EOS
       }
 
-      auto tmp = alpha * *latency_worker + (1 - alpha) * moving_avg_latency;
-      moving_avg_latency = std::chrono::duration_cast<std::chrono::microseconds>(tmp);
+      // compute service time
+      if(workers_elapsed_time_history.size() == 0){
+        moving_avg_latency = *latency_worker;
+      } else {
+        auto moving_avg = alpha * *latency_worker + (1 - alpha) * moving_avg_latency;
+        moving_avg_latency = std::chrono::duration_cast<std::chrono::microseconds>(moving_avg);
+      }
       actual_service_time = moving_avg_latency/(last_active_worker+1);
 
-      if(!EOS_counter && concurrency_throttling){
+      if(!EOS_counter){
         // don't need to update parallelism degree once tasks are finished
         nw_new = computeNumberOfRequiredWorkers(moving_avg_latency, service_time_goal);
         updateParallelismDegree(nw_new);

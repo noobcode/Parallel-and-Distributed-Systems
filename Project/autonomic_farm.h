@@ -18,7 +18,7 @@ template <typename Tin, typename Tout> class AutonomicFarm{
 //class AutonomicFarm{
 private:
   unsigned int max_nw; // maximum number of workers
-
+  bool concurrency_throttling;
   SafeQueue<int>* workers_requests; // unilateral channel from Workers to Emitter
   std::vector<SafeQueue<Task<Tin>*>*>* task_queues; // unilateral channels from Emitter to each Worker
   SafeQueue<Task<Tout>*>* workers_result; // queue where workers push results
@@ -39,6 +39,7 @@ public:
                 std::function<Tout(Tin)> f,
                 float alpha,
                 bool concurrency_throttling) : max_nw(max_nw),
+                               concurrency_throttling(concurrency_throttling),
                                workers_requests(new SafeQueue<int>(max_nw)),
                                task_queues(new std::vector<SafeQueue<Task<Tin>*>*>(max_nw)),
                                workers_result(new SafeQueue<Task<Tout>*>),
@@ -55,7 +56,8 @@ public:
 
     // initialize workers
     for(size_t i = 0; i < max_nw; i++)
-      workers->at(i) = new FarmWorker<Tin, Tout>(i, workers_requests, task_queues->at(i), workers_result, latency_queue, f, INACTIVE);
+      workers->at(i) = new FarmWorker<Tin, Tout>(i, concurrency_throttling,
+            workers_requests, task_queues->at(i), workers_result, latency_queue, f, INACTIVE);
   };
 
   // methods
@@ -74,6 +76,7 @@ public:
       workers->at(i)->join();
     }
     collector.join();
+
     manager.join();
   }
 
