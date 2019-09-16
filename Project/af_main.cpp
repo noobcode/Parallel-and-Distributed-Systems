@@ -11,9 +11,10 @@ template <typename Tin, typename Tout>
 std::chrono::microseconds computeSequentialTime(std::vector<Tin> data, std::function<Tout(Tin)> f){
   std::chrono::microseconds sequential_time;
   std::vector<Tout> results(data.size());
+  size_t n = data.size();
   {
     utimer timer(&sequential_time);
-    for(size_t i = 0; i < data.size(); i++)
+    for(size_t i = 0; i < n; i++)
       results[i] = f(data[i]);
   }
   return sequential_time;
@@ -86,31 +87,39 @@ std::vector<int> generateCollection(size_t n, int f1, int f2, int f3){
   return data;
 }
 
+std::vector<int> generateUniqueCollection(size_t m, int value){
+  std::vector<int> data(m, value);
+  return data;
+}
+
 int main(int argc, const char* argv[]){
-  if(argc != 10){
+  if(argc != 15){
     std::cout << "usage:" << std::endl
-              << argv[0] << " nw_init nw_max ts_goal concurrency_throttling alpha n l1 l2 l3"
-              << std::endl;
+              << argv[0] << " n_expriments [1,6]"
+                         << " (nw_init nw_max ts_goal concurrency_throttling alpha)"
+                         << " (m l1 l2 l3)"
+                         << " (m_s v_s)"
+                         << " (unique_m unique_value)" << std::endl;
     return -1;
   }
 
   // parse arguments
-  size_t nw_init = atoi(argv[1]);
-  size_t nw_max = atoi(argv[2]);
-  std::chrono::microseconds service_time_goal(atoi(argv[3]));
-  bool concurrency_throttling = (bool)atoi(argv[4]);
-  float alpha = atof(argv[5]);
-  size_t n = atoi(argv[6]);
-  size_t l1 = atoi(argv[7]);
-  size_t l2 = atoi(argv[8]);
-  size_t l3 = atoi(argv[9]);
+  size_t n_expriments = atoi(argv[1]);
+  size_t nw_init = atoi(argv[2]);
+  size_t nw_max = atoi(argv[3]);
+  std::chrono::microseconds service_time_goal(atoi(argv[4]));
+  bool concurrency_throttling = (bool)atoi(argv[5]);
+  float alpha = atof(argv[6]);
+  size_t n = atoi(argv[7]);
+  size_t l1 = atoi(argv[8]);
+  size_t l2 = atoi(argv[9]);
+  size_t l3 = atoi(argv[10]);
+  size_t m_s = atoi(argv[11]);
+  size_t v_s = atoi(argv[12]);
+  size_t unique_m = atoi(argv[13]);
+  size_t unique_value = atoi(argv[14]);
 
-  //std::vector<std::vector<int>> data = generateCollectionOfVectors(n, l1, l2, l3);
-  //AutonomicFarm<std::vector<int>, float> farm(nw_max, my_f, alpha, concurrency_throttling);
 
-  std::vector<int> data = generateCollection(n, l1, l2, l3);
-  //AutonomicFarm<int, int> farm(nw_max, fibonacci, alpha, concurrency_throttling);
-  AutonomicFarm<int, int> farm(nw_max, busywait, alpha, concurrency_throttling);
 
 ////////////////////////////////////////////////////////////////////////////////
 // TODO normal run with concurrency throttling
@@ -118,22 +127,33 @@ int main(int argc, const char* argv[]){
 // - active workers history
 // - elapsed time history (emitter, workers, collector)
 ////////////////////////////////////////////////////////////////////////////////
+if(n_expriments >= 1){
+  std::cout << "normal execution" << std::endl;
+  //std::vector<std::vector<int>> data = generateCollectionOfVectors(n, l1, l2, l3);
+  //AutonomicFarm<std::vector<int>, float> farm(nw_max, my_f, alpha, concurrency_throttling);
+
+  std::vector<int> data = generateCollection(n, l1, l2, l3);
+  //AutonomicFarm<int, int> farm(nw_max, fibonacci, alpha, concurrency_throttling);
+  AutonomicFarm<int, int> farm(nw_max, busywait, alpha, concurrency_throttling);
   farm.run_and_wait(data, nw_init, service_time_goal);
   farm.service_time_history_to_csv("service_time_trial");
 
   auto completion_time = farm.getCompletionTime().count();
   std::cout << "completion_time: " << completion_time << std::endl;
-
+}
 ///////////////////////////////////////////////////////////////////////////////
 // TODO experiment for scalability
 // - completion time T(1)...T(nw_max) - (no concurrency throttling)
 //////////////////////////////////////////////////////////////////////////////
+if(n_expriments >= 2){
+  auto data = generateUniqueCollection(m_s, v_s);
   std::cout << "running experiment for scalability" << std::endl;
 
   std::ofstream myfile;
   myfile.open("Statistics/completion_time_vs_nw.csv");
   myfile << "nw,completion_time" << std::endl;
   for(size_t i = 1; i <= nw_max; i++){
+    std::cout << "nw: " << i << std::endl;
     //AutonomicFarm<std::vector<int>, float> farm(i, my_f, alpha, false);
     //AutonomicFarm<int, int> farm(i, fibonacci, alpha, false);
     AutonomicFarm<int, int> farm(i, busywait, alpha, false);
@@ -142,12 +162,14 @@ int main(int argc, const char* argv[]){
     myfile << i << "," << completion_time << std::endl;
   }
   myfile.close();
-
+}
 ////////////////////////////////////////////////////////////////////////////////
 // TODO experiment for speedup
 // - compute sequential time
 // - T(1)...T(n) computed above
 // ////////////////////////////////////////////////////////////////////////////
+if(n_expriments >= 3){
+  auto data = generateUniqueCollection(m_s, v_s);
   std::cout << "running experiment for speedup" << std::endl;
   auto sequential_time = computeSequentialTime<int, int>(data, busywait);
   //auto sequential_time = computeSequentialTime<int, int>(data, fibonacci);
@@ -159,12 +181,14 @@ int main(int argc, const char* argv[]){
            << sequential_time.count() << std::endl;
   myfile_2.close();
   std::cout << "sequential time: " << sequential_time.count() << std::endl;
-
+}
 ////////////////////////////////////////////////////////////////////////////////
 // TODO experiment for average service time error vs alpha
 // - service time history for each alpha
 // - compute mean relative error
 ///////////////////////////////////////////////////////////////////////////////
+if(n_expriments >= 4){
+  std::vector<int> data = generateCollection(n, l1, l2, l3);
   std::cout << "running experiment for alpha" << std::endl;
   std::vector<float> alpha_values = {0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35,
                                      0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7,
@@ -188,37 +212,39 @@ int main(int argc, const char* argv[]){
     myfile_3 << std::endl;
   }
   myfile_3.close();
-
+}
 ///////////////////////////////////////////////////////////////////////////////
 // TODO experiment max speedup and scalability vs task size (fixed collection size)
 // - iterate task size (all three partition same size)
 //  - iterate nw workers
 //  - save completion_time(nw)
 ///////////////////////////////////////////////////////////////////////////////
+if(n_expriments >= 5){
   std::cout << "running experiment for task size" << std::endl;
-  std::vector<size_t> task_size = {250, 500, 1000, 2000, 4000, 8000, 16000, 32000};
-
-// sequential time vs task size
+  std::vector<size_t> task_size = {125, 250, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000};
+  // sequential time vs task size
   std::ofstream myfile4;
   myfile4.open("Statistics/task_size_vs_sequential_time.csv");
   myfile4 << "task_size,sequential_time" << std::endl;
   for(size_t i = 0; i < task_size.size(); i++){
-    size_t size = task_size[i];
-    std::cout << "-- task size: " << size << std::endl;
-    auto data = generateCollection(n, size, size, size);
+    size_t t_size = task_size[i];
+    std::cout << "-- task size: " << t_size << std::endl;
+    //auto data = generateCollection(n, size, size, size);
+    auto data = generateUniqueCollection(unique_m, t_size);
     auto sequential_time = computeSequentialTime<int, int>(data, busywait);
-    myfile4 << size << "," << sequential_time.count() << std::endl;
+    myfile4 << t_size << "," << sequential_time.count() << std::endl;
   }
   myfile4.close();
 
-// nw vs completion_time for each task size
+  // nw vs completion_time for each task size
   for(size_t j = 0; j < task_size.size(); j++){
-    size_t size = task_size[j];
-    std::cout << "-- task size: " << size << std::endl;
-    auto data = generateCollection(n, size, size, size);
+    size_t t_size = task_size[j];
+    std::cout << "-- task size: " << t_size << std::endl;
+    //auto data = generateCollection(n, size, size, size);
+    auto data = generateUniqueCollection(unique_m, t_size);
 
     std::ofstream myfile5;
-    myfile5.open("Statistics/TaskSize/completion_time_vs_nw_task_size_" + std::to_string(size) + ".csv");
+    myfile5.open("Statistics/TaskSize/completion_time_vs_nw_task_size_" + std::to_string(t_size) + ".csv");
     myfile5 << "nw,completion_time" << std::endl;
     for(size_t i = 1; i <= nw_max; i++){
       AutonomicFarm<int, int> farm(i, busywait, alpha, false);
@@ -229,37 +255,40 @@ int main(int argc, const char* argv[]){
     }
     myfile5.close();
   }
-
+}
 ////////////////////////////////////////////////////////////////////////////////
 // TODO experiment max speedup and scalability vs collection size (fixed task size)
 // - iterate collection size n (so total collection size is 3n)
 //  - iterate nw workers
 //  - save completion_time(nw)
 ////////////////////////////////////////////////////////////////////////////////
+if(n_expriments == 6){
 std::cout << "runnning experiment for collection size" << std::endl;
-std::vector<size_t> collection_size = {100, 200, 400, 800, 1600, 3200, 6400};
+std::vector<size_t> collection_size = {100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600};
 
 // sequential time vs collection size
 std::ofstream myfile6;
 myfile6.open("Statistics/collection_size_vs_sequential_time.csv");
 myfile6 << "collection_size,sequential_time" << std::endl;
 for(size_t i = 0; i < collection_size.size(); i++){
-  size_t size = collection_size[i];
-  std::cout << "-- collection size: " << size << std::endl;
-  auto data = generateCollection(size, l1, l2, l3);
+  size_t c_size = collection_size[i];
+  std::cout << "-- collection size: " << c_size << std::endl;
+  //auto data = generateCollection(size, l1, l2, l3);
+  auto data = generateUniqueCollection(c_size, unique_value);
   auto sequential_time = computeSequentialTime<int, int>(data, busywait);
-  myfile6 << (3*size) << "," << sequential_time.count() << std::endl;
+  myfile6 << c_size << "," << sequential_time.count() << std::endl;
 }
 myfile6.close();
 
 // nw vs completion_time for each collection size
 for(size_t j = 0; j < collection_size.size(); j++){
-  size_t size = collection_size[j];
-  std::cout << "-- collection size: " << size << std::endl;
-  auto data = generateCollection(size, l1, l2, l3);
+  size_t c_size = collection_size[j];
+  std::cout << "-- collection size: " << c_size << std::endl;
+  //auto data = generateCollection(size, l1, l2, l3);
+  auto data = generateUniqueCollection(c_size, unique_value);
 
   std::ofstream myfile7;
-  myfile7.open("Statistics/CollSize/completion_time_vs_nw_coll_size_" + std::to_string(3*size) + ".csv");
+  myfile7.open("Statistics/CollSize/completion_time_vs_nw_coll_size_" + std::to_string(c_size) + ".csv");
   myfile7 << "nw,completion_time" << std::endl;
   for(size_t i = 1; i <= nw_max; i++){
     AutonomicFarm<int, int> farm(i, busywait, alpha, false);
@@ -270,6 +299,6 @@ for(size_t j = 0; j < collection_size.size(); j++){
   }
   myfile7.close();
 }
-
+}
   return 0;
 }
